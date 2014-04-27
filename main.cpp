@@ -5,9 +5,7 @@
  * Created on April 27, 2014, 9:09 AM
  */
 
-#include <cstdlib>
-
-using namespace std;
+#include <stdio.h>
 
 /*
  * 

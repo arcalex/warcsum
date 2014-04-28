@@ -3,18 +3,40 @@
 #include <string.h>
 #include <openssl/md5.h>
 #include <openssl/sha.h>
+#include <getopt.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 //char string[] = "The quick brown fox jumped over the lazy dog's back";
 
 int main(int argc, char **argv) {
     // read command line input
     FILE *fp;
-
-    if (argc == 2) {
-        fp = fopen(argv[1], "r");
-    } else {
-        printf("***ERROR: Please provide 1 file.\n");
-        exit(1);
+    int opt;
+    int algo;
+    char* t;
+    while ((opt = getopt(argc, argv, "i:t:")) != -1) {
+        switch (opt) {
+            case 'i':
+                fp = fopen(optarg, "r");
+                break;
+            case 't':
+                t = optarg;
+                if (!strcmp(t, "md5")) {
+                    algo = 1;
+                } else if (!strcmp(t, "sha")) {
+                    algo = 2;
+                } else if (!strcmp(t, "sha256")) {
+                    algo = 3;
+                } else {
+                    fprintf(stderr, "Invalid argument for -t. Options: md5, sha, sha256\n");
+                }
+                break;
+            default:
+                fprintf(stderr, "Usage: %s [-i input file] [-t hashing algorithm]\n",
+                        argv[0]);
+                exit(EXIT_FAILURE);
+        }
     }
 
     // read the whole file
@@ -29,49 +51,47 @@ int main(int argc, char **argv) {
         exit(3);
     }
 
-
     if (buffer == NULL) {
         fputs("Memory error", stderr);
         exit(2);
     }
-
-    // calculate md5
-    time_t md5begin = time(NULL);
-    unsigned char md5result[MD5_DIGEST_LENGTH];
-    MD5((unsigned char*) buffer, length, md5result);
-    time_t md5end = time(NULL);
-    time_t md5total = md5end - md5begin;
-
-    // calculate sha
-    time_t shabegin = time(NULL);
-    unsigned char sharesult[SHA_DIGEST_LENGTH];
-    SHA((unsigned char*) buffer, length, sharesult);
-    time_t shaend = time(NULL);
-    time_t shatotal = shaend - shabegin;
-
-    // calculate sha256
-    time_t sha256begin = time(NULL);
-    unsigned char sha256result[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*) buffer, length, sha256result);
-    time_t sha256end = time(NULL);
-    time_t sha256total = sha256end - sha256begin;
-
     int i;
+    time_t begin;
+    unsigned char result[MD5_DIGEST_LENGTH];
+    time_t end;
+    time_t total;
+    begin = time(NULL);
+    switch (algo) {
+        case 1:
+            // calculate md5
+            MD5((unsigned char*) buffer, length, result);
+            for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+                printf("%02x", result[i]);
+            break;
+        case 2:
+            // calculate sha
+            SHA((unsigned char*) buffer, length, result);
+            total = end - begin;
+            for (i = 0; i < SHA_DIGEST_LENGTH; i++)
+                printf("%02x", result[i]);
+            break;
+        case 3:
+            // calculate sha256
+            SHA256((unsigned char*) buffer, length, result);
+            for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
+                printf("%02x", result[i]);
+            break;
+
+    }
+    end = time(NULL);
+    total = end - begin;
+    printf("\nAlgorithm used: %s\n", t);
+    printf("Time consumed: %d\n", total);
+
+
     // output
-    printf("md5:\t");
-    for (i = 0; i < MD5_DIGEST_LENGTH; i++)
-        printf("%02x", md5result[i]);
-    printf("md5 time:\t%d\n", (int) md5total);
 
-    printf("sha:\t");
-    for (i = 0; i < SHA_DIGEST_LENGTH; i++)
-        printf("%02x", sharesult[i]);
-    printf("sha time\t%d\n", (int) shatotal);
 
-    printf("sha256: ");
-    for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
-        printf("%02x", sha256result[i]);
-    printf("sha256 time\t%d\n", (int) sha256total);
-    
+
     return 0;
 }

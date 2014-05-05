@@ -17,4 +17,37 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+# Refer to perlrun(1) for options in the #!. -n runs Perl in Awk mode.
+# -a turns on automatic line splitting (@F). -l is for automatic line
+# processing (chomp the '\n' and set the ORS to '\n').
 
+# NOTE: This is a classic program with a single input stream and a
+# single output stream. Use the stdio streams the OS provides. This
+# relieves the program from having to process command-line args as well
+# as from having to open/close file handles.
+#
+# Also, keep in mind that in non-strict Perl, initializing variables to
+# undef accomplishes nothing.
+
+# INPUT
+#
+# warc_filename offset uri   date  hash  hash_ext
+# $F[0]         $F[1]  $F[2] $F[3] $F[4] $F[5]
+
+if ($hash ne $F[4] && $hash_ext ne $F[5])
+{
+  ($refersto_uri, $refersto_date, $hash, $hash_ext) = @F[2..5];
+
+  # First copy.
+  $copy = 1;
+
+  # First copy refers to nothing.
+  print "$F[0] $F[1] $F[2] $F[3] $F[4] $F[5] $copy - -";
+}
+else
+{
+  # Duplicate.
+  $copy++;
+
+  print "$F[0] $F[1] $F[2] $F[3] $F[4] $F[5] $copy $refersto_uri $refersto_date";
+}

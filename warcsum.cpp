@@ -25,6 +25,8 @@ const string WARC_HEADER = "WARC/1.0\r";
 const string CONTENT_LENGTH = "Content-Length";
 const string WARC_TYPE = "WARC-Type";
 const string WARC_PAYLOAD_DIGEST = "WARC-Payload-Digest";
+const string WARC_TARGET_URI = "WARC-Target-URI";
+const string WARC_DATE = "WARC-Date";
 
 void hash(char* buffer, int algo, char* computedDigest) {
     // read the whole file
@@ -164,16 +166,23 @@ string Base32DecodeBase16Encode(string input) {
 }
 
 int main(int argc, char **argv) {
+    string FILENAME = "jan_BLA_BLA"; // to be changed when integrated with gzmulti
+    string OFFSET = "101010"; // to be changed when integrated with gzmulti
+    string URI;
+    string DATE;
     ifstream warcFile;
+    ofstream manifestFile;
     bool forceRecalc = false, decompress = false;
     int opt;
     int algo;
     char* t = new char[20];
-    string fileName;
-    while ((opt = getopt(argc, argv, "i:t:fx")) != -1) {
+    string warcFileName;
+    string manifestFileName;
+    string FINAL_HASH;
+    while ((opt = getopt(argc, argv, "o:i:t:fx")) != -1) {
         switch (opt) {
             case 'i':
-                fileName = optarg;
+                warcFileName = optarg;
                 break;
             case 't':
                 strcpy(t, optarg);
@@ -194,18 +203,21 @@ int main(int argc, char **argv) {
             case 'x':
                 decompress = true;
                 break;
+            case 'o':
+                manifestFileName = optarg;
+                break;
             default:
-                fprintf(stderr, "Usage: %s [-i input file] [-t hashing algorithm] [-f force digest calculation] [-x decompress]\n",
+                fprintf(stderr, "Usage: %s [-i input file] [-t hashing algorithm] [-f force digest calculation] [-x decompress] [-o output file]\n",
                         argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
-    if (decompress) {
-        string cmd = "gunzip -cd " + fileName + " > " + fileName + ".warc";
+    if (decompress) { // to be changes to use unpack function in gzmulti
+        string cmd = "gunzip -cd " + warcFileName + " > " + warcFileName + ".warc";
         system(cmd.c_str());
-        fileName = fileName + ".warc";
+        warcFileName = warcFileName + ".warc";
     }
-    warcFile.open(fileName.c_str(), ifstream::in);
+    warcFile.open(warcFileName.c_str(), ifstream::in);
     string str;
     unsigned long lSize;
     string precomputed_digest = "";
@@ -225,6 +237,10 @@ int main(int argc, char **argv) {
             precomputed_digest = value.substr(value.find(":") + 1);
         } else if (!key.compare(WARC_TYPE)) {
             type = value;
+        } else if (!key.compare(WARC_DATE)) {
+            DATE = value;
+        } else if (!key.compare(WARC_TARGET_URI)) {
+            URI = value;
         }
     }
     if (type.compare("response")) {
@@ -234,6 +250,7 @@ int main(int argc, char **argv) {
         if (precomputed_digest.compare("") && algo == 2 && !forceRecalc) {
             fixedDigest = Base32DecodeBase16Encode(precomputed_digest);
             printf("Stored hash:\tsha1:%s\n", fixedDigest.c_str());
+            FINAL_HASH = fixedDigest;
         } else {
             while (getline(warcFile, str) && str.compare("\r")) { // Header
                 stringstream ss(str);
@@ -249,12 +266,18 @@ int main(int argc, char **argv) {
             char computedDigest[50];
             hash(buffer, algo, computedDigest);
             printf("Calculated digest:\t%s:%s\n", t, computedDigest);
+            FINAL_HASH = computedDigest;
             delete []buffer;
             delete []t;
         }
     }
-    if (decompress) {
-        string cmd = "rm " + fileName;
+    manifestFile.open(manifestFileName.c_str(), ofstream::out | ofstream::app);
+    string manifest = FILENAME + "," + OFFSET + "," + URI + "," + DATE + "," + FINAL_HASH + "\n";
+    manifestFile << manifest << endl;
+    cout << manifest << endl;
+
+    if (decompress) { // to be changes to use unpack function in gzmulti
+        string cmd = "rm " + warcFileName;
         system(cmd.c_str());
     }
     return 0;

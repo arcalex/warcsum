@@ -52,6 +52,9 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 computedDigest[j + 1] = temp[1];
             }
             computedDigest[j] = '\0';
+            if (algo) {
+                printf("Hash: MD5\n");
+            }
             break;
         case 2:
             // calculate sha1
@@ -63,6 +66,9 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 computedDigest[j + 1] = temp[1];
             }
             computedDigest[j] = '\0';
+            if (algo) {
+                printf("Hash: SHA1\n");
+            }
             break;
         case 3:
             // calculate sha256
@@ -72,6 +78,9 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 sprintf(temp, "%02x", result[i]);
                 computedDigest[j] = temp[0];
                 computedDigest[j + 1] = temp[1];
+            }
+            if (algo) {
+                printf("Hash: SHA256\n");
             }
             computedDigest[j] = '\0';
             break;
@@ -172,14 +181,14 @@ int main(int argc, char **argv) {
     string DATE;
     ifstream warcFile;
     ofstream manifestFile;
-    bool forceRecalc = false, decompress = false;
+    bool forceRecalc = false, decompress = false, verbose = false;
     int opt;
     int algo;
     char* t = new char[20];
     string warcFileName;
     string manifestFileName;
     string FINAL_HASH;
-    while ((opt = getopt(argc, argv, "o:i:t:fx")) != -1) {
+    while ((opt = getopt(argc, argv, "o:i:t:fxv")) != -1) {
         switch (opt) {
             case 'i':
                 warcFileName = optarg;
@@ -206,6 +215,9 @@ int main(int argc, char **argv) {
             case 'o':
                 manifestFileName = optarg;
                 break;
+            case 'v':
+                verbose = true;
+                break;
             default:
                 fprintf(stderr, "Usage: %s [-i input file] [-t hashing algorithm] [-f force digest calculation] [-x decompress] [-o output file]\n",
                         argv[0]);
@@ -218,6 +230,9 @@ int main(int argc, char **argv) {
         warcFileName = warcFileName + ".warc";
     }
     warcFile.open(warcFileName.c_str(), ifstream::in);
+    if (verbose) {
+        printf("File found\n");
+    }
     string str;
     unsigned long lSize;
     string precomputed_digest = "";
@@ -225,26 +240,42 @@ int main(int argc, char **argv) {
     string type;
     getline(warcFile, str);
     assert(!str.compare(WARC_HEADER));
-    while (getline(warcFile, str) && str.compare("\r")) { // Header
+    while (getline(warcFile, str) && str.compare("\r")) { // WARC Header
         stringstream ss(str);
         string key, value;
         ss >> key >> value;
         key = (string) key.substr(0, key.length() - 1);
         if (!key.compare(CONTENT_LENGTH)) {
             lSize = atoi(value.c_str());
+            if (verbose) {
+                printf("WARC content length: %s\n", value.c_str());
+            }
         } else if (!key.compare(WARC_PAYLOAD_DIGEST)) {
             precomputed_hash = value.substr(0, value.find(":"));
             precomputed_digest = value.substr(value.find(":") + 1);
+            if (verbose) {
+                printf("WARC payload digest: %s\n", value.c_str());
+            }
         } else if (!key.compare(WARC_TYPE)) {
             type = value;
+            if (verbose) {
+                printf("WARC type: %s\n", value.c_str());
+            }
         } else if (!key.compare(WARC_DATE)) {
             DATE = value;
+            if (verbose) {
+                printf("WARC date: %s\n", value.c_str());
+            }
         } else if (!key.compare(WARC_TARGET_URI)) {
             URI = value;
+            if (verbose) {
+                printf("WARC target uri: %s\n", value.c_str());
+            }
         }
     }
     if (type.compare("response")) {
         printf("WARC-Type is not \"response\"");
+        return 0;
     } else {
         string fixedDigest;
         if (precomputed_digest.compare("") && algo == 2 && !forceRecalc) {
@@ -252,17 +283,24 @@ int main(int argc, char **argv) {
             printf("Stored hash:\tsha1:%s\n", fixedDigest.c_str());
             FINAL_HASH = fixedDigest;
         } else {
-            while (getline(warcFile, str) && str.compare("\r")) { // Header
+            while (getline(warcFile, str) && str.compare("\r")) { // HTTP Header
                 stringstream ss(str);
                 string key, value;
                 ss >> key >> value;
                 key = (string) key.substr(0, key.length() - 1);
                 if (!key.compare(CONTENT_LENGTH)) {
                     lSize = atoi(value.c_str());
+                    if (verbose) {
+                        printf("HTTP content length: %s\n", value.c_str());
+                    }
                 }
             }
             char *buffer = new char[lSize];
             warcFile.read(buffer, lSize);
+            if (verbose) {
+                printf("Content read\n");
+            }
+
             char computedDigest[50];
             hash(buffer, algo, computedDigest);
             printf("Calculated digest:\t%s:%s\n", t, computedDigest);
@@ -272,9 +310,13 @@ int main(int argc, char **argv) {
         }
     }
     manifestFile.open(manifestFileName.c_str(), ofstream::out | ofstream::app);
-    string manifest = FILENAME + "," + OFFSET + "," + URI + "," + DATE + "," + FINAL_HASH + "\n";
-    manifestFile << manifest << endl;
-    cout << manifest << endl;
+    string manifest = FILENAME + " " + OFFSET + " " + URI + " " + DATE + " " + FINAL_HASH + "\n";
+    if (verbose) {
+        printf("Manifest written\n");
+    }
+
+    manifestFile << manifest;
+    cout << "Manifest" << manifest << endl;
 
     if (decompress) { // to be changes to use unpack function in gzmulti
         string cmd = "rm " + warcFileName;

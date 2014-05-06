@@ -2,7 +2,7 @@ bin_PROGRAMS = \
   warcsum
 
 warcsum_SOURCES = \
-  warcsum.c
+  warcsum.cpp
 
 dist_bin_SCRIPTS = \
   warcsumproc

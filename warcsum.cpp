@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
         printf("WARC-Type is not \"response\"");
     } else {
         string fixedDigest;
-        if (precomputed_digest.compare("") && algo == 2) {
+        if (precomputed_digest.compare("") && algo == 2 && !forceRecalc) {
             fixedDigest = Base32DecodeBase16Encode(precomputed_digest);
             printf("Stored hash:\tsha1:%s\n", fixedDigest.c_str());
         } else {

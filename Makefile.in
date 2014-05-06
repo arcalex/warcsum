@@ -214,7 +214,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 warcsum_SOURCES = \
-  warcsum.c
+  warcsum.cpp
 
 dist_bin_SCRIPTS = \
   warcsumproc

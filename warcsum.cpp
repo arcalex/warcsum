@@ -183,10 +183,10 @@ int main(int argc, char **argv) {
     ofstream manifestFile;
     bool forceRecalc = false, decompress = false, verbose = false;
     int opt;
-    int algo;
+    int algo = 0;
     char* t = new char[20];
-    string warcFileName;
-    string manifestFileName;
+    string warcFileName = "";
+    string manifestFileName = "";
     string FINAL_HASH;
     while ((opt = getopt(argc, argv, "o:i:t:fxv")) != -1) {
         switch (opt) {
@@ -223,6 +223,11 @@ int main(int argc, char **argv) {
                         argv[0]);
                 exit(EXIT_FAILURE);
         }
+    }
+    if (!manifestFileName.compare("") || !warcFileName.compare("") || algo == 0) {
+        fprintf(stderr, "Usage: %s [-i input file | required] [-t hashing algorithm | required] [-o output file | required] [-f force digest calculation] [-x decompress]\n",
+                argv[0]);
+        exit(EXIT_FAILURE);
     }
     if (decompress) { // to be changes to use unpack function in gzmulti
         string cmd = "gunzip -cd " + warcFileName + " > " + warcFileName + ".warc";
@@ -316,7 +321,7 @@ int main(int argc, char **argv) {
     }
 
     manifestFile << manifest;
-    cout << "Manifest" << manifest << endl;
+    cout << "Manifest " << manifest << endl;
 
     if (decompress) { // to be changes to use unpack function in gzmulti
         string cmd = "rm " + warcFileName;

@@ -16,32 +16,32 @@
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <getopt.h>
+#include <ftw.h>
 using namespace std;
 
 /*
  * 
  */
+bool forceRecalc, decompress, verbose, recursive;
 const string WARC_HEADER = "WARC/1.0\r";
 const string CONTENT_LENGTH = "Content-Length";
 const string WARC_TYPE = "WARC-Type";
 const string WARC_PAYLOAD_DIGEST = "WARC-Payload-Digest";
 const string WARC_TARGET_URI = "WARC-Target-URI";
 const string WARC_DATE = "WARC-Date";
+string manifestFileName;
 
-void hash(char* buffer, int algo, char* computedDigest) {
+void hash(char* buffer, int hash, char* computedDigest) {
     // read the whole file
+
     long lSize = strlen(buffer);
+
     int i;
     unsigned char result[50];
     int j = 0;
-    //        if (algo == 1)
-    //            computedDigest = new char[MD5_DIGEST_LENGTH];
-    //        else if (algo == 2)
-    //            computedDigest = new char[SHA_DIGEST_LENGTH];
-    //        else if (algo == 3)
-    //            computedDigest = new char[50];
 
-    switch (algo) {
+
+    switch (hash) {
         case 1:
             // calculate md5
             MD5((unsigned char*) buffer, lSize, result);
@@ -52,7 +52,7 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 computedDigest[j + 1] = temp[1];
             }
             computedDigest[j] = '\0';
-            if (algo) {
+            if (verbose) {
                 printf("Hash: MD5\n");
             }
             break;
@@ -66,7 +66,7 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 computedDigest[j + 1] = temp[1];
             }
             computedDigest[j] = '\0';
-            if (algo) {
+            if (verbose) {
                 printf("Hash: SHA1\n");
             }
             break;
@@ -79,14 +79,13 @@ void hash(char* buffer, int algo, char* computedDigest) {
                 computedDigest[j] = temp[0];
                 computedDigest[j + 1] = temp[1];
             }
-            if (algo) {
+            if (verbose) {
                 printf("Hash: SHA256\n");
             }
             computedDigest[j] = '\0';
             break;
         default:
             exit(EXIT_FAILURE);
-
     }
 }
 
@@ -170,81 +169,42 @@ string Base32DecodeBase16Encode(string input) {
 
     }
 
-    delete [] output_str;
+    delete []output_str;
     return output;
 }
 
-int main(int argc, char **argv) {
+string gunzip(string warcGzFileName) { // to be changes to use unpack function in gzmulti
+    string cmd = "gunzip -cd " + warcGzFileName + " > " + warcGzFileName + ".warc";
+    system(cmd.c_str());
+    warcGzFileName = warcGzFileName + ".warc";
+    return warcGzFileName;
+}
+
+short algo;
+char* t;
+
+int manifest(string warcFileName, string manifestFileName) {
+    ifstream warcFile;
+    ofstream manifestFile;
+    string FINAL_HASH;
     string FILENAME = "jan_BLA_BLA"; // to be changed when integrated with gzmulti
     string OFFSET = "101010"; // to be changed when integrated with gzmulti
     string URI;
     string DATE;
-    ifstream warcFile;
-    ofstream manifestFile;
-    bool forceRecalc = false, decompress = false, verbose = false;
-    int opt;
-    int algo = 0;
-    char* t = new char[20];
-    string warcFileName = "";
-    string manifestFileName = "";
-    string FINAL_HASH;
-    while ((opt = getopt(argc, argv, "o:i:t:fxv")) != -1) {
-        switch (opt) {
-            case 'i':
-                warcFileName = optarg;
-                break;
-            case 't':
-                strcpy(t, optarg);
-                if (!strcmp(t, "md5")) {
-                    algo = 1;
-                } else if (!strcmp(t, "sha1")) {
-                    algo = 2;
-                } else if (!strcmp(t, "sha256")) {
-                    algo = 3;
-                } else {
-                    fprintf(stderr, "Invalid argument %s for -t. Options: md5, sha1, sha256\n", t);
-                    exit(EXIT_FAILURE);
-                }
-                break;
-            case 'f':
-                forceRecalc = true;
-                break;
-            case 'x':
-                decompress = true;
-                break;
-            case 'o':
-                manifestFileName = optarg;
-                break;
-            case 'v':
-                verbose = true;
-                break;
-            default:
-                fprintf(stderr, "Usage: %s [-i input file] [-t hashing algorithm] [-f force digest calculation] [-x decompress] [-o output file]\n",
-                        argv[0]);
-                exit(EXIT_FAILURE);
-        }
-    }
-    if (!manifestFileName.compare("") || !warcFileName.compare("") || algo == 0) {
-        fprintf(stderr, "Usage: %s [-i input file | required] [-t hashing algorithm | required] [-o output file | required] [-f force digest calculation] [-x decompress]\n",
-                argv[0]);
-        exit(EXIT_FAILURE);
-    }
-    if (decompress) { // to be changes to use unpack function in gzmulti
-        string cmd = "gunzip -cd " + warcFileName + " > " + warcFileName + ".warc";
-        system(cmd.c_str());
-        warcFileName = warcFileName + ".warc";
-    }
-    warcFile.open(warcFileName.c_str(), ifstream::in);
-    if (verbose) {
-        printf("File found\n");
-    }
     string str;
     unsigned long lSize;
     string precomputed_digest = "";
     string precomputed_hash;
     string type;
+    if (decompress) {
+        warcFileName = gunzip(warcFileName);
+    }
+    warcFile.open(warcFileName.c_str(), ifstream::in);
     getline(warcFile, str);
-    assert(!str.compare(WARC_HEADER));
+
+    if (str.compare(WARC_HEADER)) {
+        printf("Not a WARC file!!");
+    }
     while (getline(warcFile, str) && str.compare("\r")) { // WARC Header
         stringstream ss(str);
         string key, value;
@@ -279,7 +239,7 @@ int main(int argc, char **argv) {
         }
     }
     if (type.compare("response")) {
-        printf("WARC-Type is not \"response\"");
+        printf("%s WARC-Type is not \"response\"\n", warcFileName.c_str());
         return 0;
     } else {
         string fixedDigest;
@@ -308,24 +268,117 @@ int main(int argc, char **argv) {
 
             char computedDigest[50];
             hash(buffer, algo, computedDigest);
-            printf("Calculated digest:\t%s:%s\n", t, computedDigest);
+            if (verbose) {
+                printf("Calculated digest:\t%s:%s\n", t, computedDigest);
+            }
             FINAL_HASH = computedDigest;
             delete []buffer;
-            delete []t;
+            //            delete t;
         }
     }
     manifestFile.open(manifestFileName.c_str(), ofstream::out | ofstream::app);
-    string manifest = FILENAME + " " + OFFSET + " " + URI + " " + DATE + " " + FINAL_HASH + "\n";
+    string manifest = FILENAME + " " + warcFileName + " " + URI + " " + DATE + " " + FINAL_HASH + "\n";
     if (verbose) {
         printf("Manifest written\n");
     }
-
-    manifestFile << manifest;
-    cout << "Manifest " << manifest << endl;
-
     if (decompress) { // to be changes to use unpack function in gzmulti
         string cmd = "rm " + warcFileName;
         system(cmd.c_str());
     }
+    manifestFile << manifest;
+    if (verbose) {
+        printf("Manifest: %s\n", manifest.c_str());
+    }
     return 0;
 }
+
+static int find_files(const char *fpath, const struct stat *sb,
+        int tflag, struct FTW *ftwbuf) {
+    if (tflag == FTW_D) {
+        return 0;
+    }
+    string stfpath(fpath);
+    if (verbose) {
+        printf("\n\nProcessing %s\n", fpath);
+    }
+    manifest(fpath, manifestFileName);
+    //    printf("%-3s %2d %7jd   %-40s %d %s\n",
+    //            (tflag == FTW_D) ? "d" : (tflag == FTW_DNR) ? "dnr" :
+    //            (tflag == FTW_DP) ? "dp" : (tflag == FTW_F) ? "f" :
+    //            (tflag == FTW_NS) ? "ns" : (tflag == FTW_SL) ? "sl" :
+    //            (tflag == FTW_SLN) ? "sln" : "???",
+    //            ftwbuf->level, (intmax_t) sb->st_size,
+    //            fpath, ftwbuf->base, fpath + ftwbuf->base);
+    return 0; /* To tell nftw() to continue */
+}
+
+int main(int argc, char **argv) {
+    forceRecalc = false;
+    decompress = false;
+    verbose = false;
+    recursive = false;
+
+    //    bool forceRecalc = false, decompress = false, verbose = false;
+    int opt;
+    string warcFileName = "";
+    manifestFileName = "";
+    while ((opt = getopt(argc, argv, "o:i:t:fxvr")) != -1) {
+        switch (opt) {
+            case 'i':
+                warcFileName = optarg;
+                break;
+            case 't':
+                t = new char[20];
+                strcpy(t, optarg);
+                if (!strcmp(t, "md5")) {
+                    algo = 1;
+                } else if (!strcmp(t, "sha1")) {
+                    algo = 2;
+                } else if (!strcmp(t, "sha256")) {
+                    algo = 3;
+                } else {
+                    fprintf(stderr, "Invalid argument %s for -t. Options: md5, sha1, sha256\n", t);
+                    exit(EXIT_FAILURE);
+                }
+                delete []t;
+                break;
+            case 'f':
+                forceRecalc = true;
+                break;
+            case 'x':
+                decompress = true;
+                break;
+            case 'o':
+                manifestFileName = optarg;
+                break;
+            case 'v':
+                verbose = true;
+                break;
+            case 'r':
+                recursive = true;
+                break;
+            default:
+                fprintf(stderr, "Usage: %s [-i input file | required] [-t hashing algorithm | required] [-o output file | required] [-f force digest calculation] [-x decompress][-r recursive]\n",
+                        argv[0]);
+                exit(EXIT_FAILURE);
+        }
+    }
+    if (!manifestFileName.compare("") || !warcFileName.compare("") || algo == 0) {
+        fprintf(stderr, "Usage: %s [-i input file | required] [-t hashing algorithm | required] [-o output file | required] [-f force digest calculation] [-x decompress]\n",
+                argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    if (!recursive) {
+        manifest(warcFileName, manifestFileName);
+    } else {
+        int flags = 0;
+        if (nftw(warcFileName.c_str(), find_files, 20, flags) == -1) {
+            perror("nftw");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return 0;
+}
+
+

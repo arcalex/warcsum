@@ -4,7 +4,7 @@
 AC_PREREQ([2.69])
 AC_INIT([warcsum], [0.1], [archive@bibalex.org])
 AM_INIT_AUTOMAKE
-AC_CONFIG_SRCDIR([warcsum.cpp])
+AC_CONFIG_SRCDIR([warcsum.c])
 #AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.

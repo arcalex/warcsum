@@ -196,7 +196,7 @@ int manifest(char* warcFileName, char* manifestFileName) {
     char FINAL_HASH[128];
     char * FILENAME = "FILE_NAME"; // to be changed when integrated with gzmulti
     char * OFFSET = "OFFSET"; // to be changed when integrated with gzmulti
-    char * C_SIZE = "SIZE"; // to be changed when integrated with gzmulti
+    long int C_SIZE; // to be changed when integrated with gzmulti
     char URI[1024];
     char DATE[1024];
     char* str = (char *) malloc(1024);
@@ -215,6 +215,8 @@ int manifest(char* warcFileName, char* manifestFileName) {
     if (strcmp(str, WARC_HEADER)) {
         printf("Not a WARC file!!");
     }
+    long int START = ftell(warcFile);
+
     while (getline(&str, &line_L, warcFile) && strcmp(str, "\r\n")) { // WARC Header
         //        stringstream ss(str);
         char *key, *value;
@@ -226,7 +228,7 @@ int manifest(char* warcFileName, char* manifestFileName) {
         for (i = 0; pch != NULL; i++) {
             if (i == 0) {
                 memcpy(key, pch, strlen(pch) - 1);
-//                strcpy(key, pch);
+                //                strcpy(key, pch);
             } else if (strcmp(pch, "")) {
                 strcpy(value, pch);
             }
@@ -303,6 +305,8 @@ int manifest(char* warcFileName, char* manifestFileName) {
                     if (verbose) {
                         printf("HTTP content length: %s \n", value);
                     }
+                    lSize = atoi(value);
+
                 }
                 //                stringstream ss(str);
                 //                string key, value;
@@ -316,9 +320,12 @@ int manifest(char* warcFileName, char* manifestFileName) {
                 //                }
             }
             //            cout << warcFileName << " " << lSize << endl;
-            lSize = 100;
+//            lSize = 100;
             char *buffer = (char*) malloc(lSize);
+            printf("lSize: %ld\n", (long int) lSize);
+            printf("BEFORE reading: %ld\n", ftell(warcFile));
             size_t temp_size = fread(buffer, 1, lSize, warcFile);
+            printf("AFTER reading: %ld\n", ftell(warcFile));
             assert(temp_size == lSize);
             if (verbose) {
                 printf("Content read \n");
@@ -336,11 +343,14 @@ int manifest(char* warcFileName, char* manifestFileName) {
             //            delete t;
         }
     }
+    long int END = ftell(warcFile);
+    printf("RANGE: %ld %ld\n", START, END);
+    C_SIZE = END - START;
     manifestFile = fopen(manifestFileName, "a");
     //    manifestFile.open(manifestFileName.c_str(), ofstream::out | ofstream::app);
     //    string manifest = FILENAME + " " + warcFileName + " " + URI + " " + DATE + " " + FINAL_HASH + " \n";
     char manifest[10240];
-    sprintf(manifest, "%s %s %s %s %s %s %s\n", FILENAME, OFFSET, C_SIZE, URI, DATE, FINAL_HASH);
+    sprintf(manifest, "%s %s %ld %s %s %s %s\n", FILENAME, OFFSET, C_SIZE, URI, DATE, FINAL_HASH);
     if (verbose) {
         printf("Manifest written \n");
     }

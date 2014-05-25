@@ -164,7 +164,7 @@ char* getURLfromDB(MYSQL *conn, char* filename) {
     size = strlen(query);
     query[size] = '\'';
     query[size + 1] = '\0';
-    
+
     if (mysql_query(conn, /*query*/ "show tables")) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         exit(1);
@@ -184,16 +184,20 @@ bool compRec(Record *first, Record *second) {
     long firstIndex = 0, secondIndex = 0;
     //Seeking to the end of the WARC header of the first record.
     for (firstIndex; first->data->memory[firstIndex] != '\n' || \
-            first->data->memory[firstIndex + 2] != '\n'; firstIndex++);
+            (first->data->memory[firstIndex + 1] != '\n' && \
+            first->data->memory[firstIndex + 2] != '\n'); firstIndex++);
     //Seeking to the end of the HTTP header of the first record.
     for (firstIndex; first->data->memory[firstIndex] != '\n' || \
-            first->data->memory[firstIndex + 2] != '\n'; firstIndex++);
+            (first->data->memory[firstIndex + 1] != '\n' && \
+            first->data->memory[firstIndex + 2] != '\n'); firstIndex++);
     //Seeking to the end of the WARC header of the second record.
     for (secondIndex; second->data->memory[secondIndex] != '\n' || \
-            second->data->memory[secondIndex + 2] != '\n'; secondIndex++);
+            (second->data->memory[secondIndex + 1] != '\n' && \
+            second->data->memory[secondIndex + 2] != '\n'); secondIndex++);
     //Seeking to the end of the HTTP header of the second record.
     for (secondIndex; second->data->memory[secondIndex] != '\n' || \
-            second->data->memory[secondIndex + 2] != '\n'; secondIndex++);
+            (second->data->memory[secondIndex + 1] != '\n' && \
+            second->data->memory[secondIndex + 2] != '\n'); secondIndex++);
     if ((first->data->size - firstIndex) != (second->data->size - secondIndex))
         return false;
     while (first->data->size > firstIndex && first->data->size > secondIndex) {
@@ -326,13 +330,13 @@ int main(int argc, char** argv) {
                 verbose = true;
                 break;
             case 'h':
-                fprintf(stderr, "Usage: warccollres [-i | --input] filename \
-[-o | --output] filename \
+                fprintf(stderr, "Usage: warccollres [-i | --input <filename>] \
+[-o | --output <filename>] \
 [-p | --proc] [-q | --quite] [-v | --verbose]\n");
-                return (EXIT_SUCCESS);              
+                return (EXIT_SUCCESS);
             default: /* '?' */
-                fprintf(stderr, "Usage: warccollres [-i | --input] filename \
-[-o | --output] filename \
+                fprintf(stderr, "Usage: warccollres [-i | --input <filename>] \
+[-o | --output <filename>] \
 [-p | --proc] [-q | --quite] [-v | --verbose]\n");
                 exit(EXIT_FAILURE);
         }
@@ -472,6 +476,5 @@ int main(int argc, char** argv) {
                 , totalRecs
                 , totalColls);
     }
-
     return (EXIT_SUCCESS);
 }

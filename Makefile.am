@@ -1,14 +1,18 @@
 bin_PROGRAMS = \
-  warcsum
+  warcsum \
+  warccollres
 
 warcsum_SOURCES = \
-  warcsum.h \
   warcsum.c
+
+include_HEADERS = warcsum.h
+
+warcsum_CFLAGS= -Wl,-rpath -Wl,LIBDIR -lcrypto
+
+warccollres_SOURCES = \
+  warccollres.c
+
+warccollres_CFLAGS= -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql -DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lm -lrt -ldl
 
 dist_bin_SCRIPTS = \
   warcsumproc
-
-#warcsum_LDADD = -lz $(pkg-config --cflags --libs glib-2.0) -lgzmulti
-warcsum_LDADD = -lz -lgzmulti -lcrypto
-
-include_HEADERS = warcsum.h

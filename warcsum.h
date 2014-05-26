@@ -17,8 +17,8 @@
  * 
  * This program acts as the first step in arcalex project.
  * 
- * Given a multimember warc.gz file, this program calculates its manifest and
- * appends it to given manifest file.
+ * Given a multimember warc.gz file, this program calculates its 
+ * manifest and appends it to given manifest file.
  * 
  * Manifest contains following data:
  *      1. Warc file name
@@ -27,6 +27,7 @@
  *      4. URI
  *      5. Date
  *      6. Digest
+ * 
  */
 
 
@@ -51,7 +52,7 @@
 //#define _BSD_SOURCE
 
 
-#define MEMBER_SIZE 1024*1024
+#define MEMBER_SIZE 2*1024*1024
 #define WARC_HEADER_SIZE 10*1024
 #define HTTP_HEADER_SIZE 10*1024
 #define MANIFEST_LINE_SIZE 4*1024
@@ -64,7 +65,7 @@
  * Hashes input char* using algo (1: md5, 2:sha1, 3:sha256) and 
  * sets output with the digest
  */
-void hash(unsigned char* input, int algo, unsigned char* output);
+void hash(unsigned char* input, int algo, unsigned char* output, int lSize);
 /*
  * Converts base32 numbers following RFC 4648 to hexadecimal numbers
  */
@@ -77,7 +78,7 @@ short strcmp_case_insensitive(char* a, char* b);
  * Processes a single char* member and gets part of its manifest (URI, DATE,
  * FINAL_HASH) 
  */
-int process_member(char* member, char* manifest_output);
+int process_member(char* member, char* manifest_output, z_stream *z);
 /*
  * Processes a multi-member warc.gz and produces manifest foreach member
  */

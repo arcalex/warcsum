@@ -4,7 +4,6 @@
  */
 #include "warcsum.h"
 
-
 int forceRecalc, decompress, verbose, recursive;
 char* WARC_HEADER = "WARC/1.0\r";
 char* CONTENT_LENGTH = "Content-Length";
@@ -17,7 +16,6 @@ char* CONTENT_TYPE = "Content-Type";
 short algo;
 char t[20];
 int curOff;
-static unsigned char member[MEMBER_SIZE];
 
 
 const char * const b32_to_bin[] = {
@@ -75,9 +73,9 @@ const char const bin_to_hex[] = {
     'f'
 };
 
-void hash(unsigned char* buffer, int hash, unsigned char* computedDigest) {
+void hash(unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize) {
     // read the whole file
-    long lSize = strlen((const char*) buffer);
+    //    long lSize = z->total_out;
 
     int i;
     unsigned char result[SHA256_DIGEST_LENGTH];
@@ -134,12 +132,12 @@ void hash(unsigned char* buffer, int hash, unsigned char* computedDigest) {
 
 void base32_to_hex(char* in, char* out) {
     /* TEST */
-    FILE* base32File;
-    base32File = fopen("base32", "a");
-    char base32[FILE_NAME_LENGTH];
-    sprintf(base32, "%s\n", in);
-    fwrite(base32, 1, strlen(base32), base32File);
-    fclose(base32File);
+    //    FILE* base32File;
+    //    base32File = fopen("base32", "a");
+    //    char base32[FILE_NAME_LENGTH];
+    //    sprintf(base32, "%s\n", in);
+    //    fwrite(base32, 1, strlen(base32), base32File);
+    //    fclose(base32File);
     /* END of TEST */
 
     char binary[160];
@@ -172,12 +170,12 @@ void base32_to_hex(char* in, char* out) {
     }
     out[40] = '\0';
     /* TEST */
-    FILE* hexFile;
-    hexFile = fopen("hex", "a");
-    char hex[FILE_NAME_LENGTH];
-    sprintf(hex, "%s\n", out);
-    fwrite(hex, 1, strlen(hex), hexFile);
-    fclose(hexFile);
+    //    FILE* hexFile;
+    //    hexFile = fopen("hex", "a");
+    //    char hex[FILE_NAME_LENGTH];
+    //    sprintf(hex, "%s\n", out);
+    //    fwrite(hex, 1, strlen(hex), hexFile);
+    //    fclose(hexFile);
     /* END of TEST */
 
 }
@@ -197,7 +195,7 @@ short strcmp_case_insensitive(char* a, char* b) {
     }
 }
 
-int process_member(char* member, char* manifest) {
+int process_member(char* member, char* manifest, z_stream *z) {
     char FINAL_HASH[SHA256_DIGEST_LENGTH];
     char URI[URL_LENGTH];
     char DATE[DATE_LENGTH];
@@ -218,12 +216,12 @@ int process_member(char* member, char* manifest) {
             printf("Not a WARC file!!\n");
         }
         /* TEST */
-        FILE* errorFile;
-        errorFile = fopen("errorFile", "a");
-        char fileN[FILE_NAME_LENGTH];
-        sprintf(fileN, "%d\n", curOff);
-        fwrite(fileN, 1, strlen(fileN), errorFile);
-        fclose(errorFile);
+        //        FILE* errorFile;
+        //        errorFile = fopen("errorFile", "a");
+        //        char fileN[FILE_NAME_LENGTH];
+        //        sprintf(fileN, "%d\n", curOff);
+        //        fwrite(fileN, 1, strlen(fileN), errorFile);
+        //        fclose(errorFile);
         /* END of TEST */
         return 1;
     }
@@ -307,7 +305,7 @@ int process_member(char* member, char* manifest) {
     }
 
 
-    str = strtok_r(NULL, "\n", &member_end);
+    //    str = strtok_r(NULL, "\n", &member_end);
     //    member[lSize] = '\0';
     if (strcmp_case_insensitive(type, "response")) {
         if (verbose) {
@@ -328,12 +326,20 @@ int process_member(char* member, char* manifest) {
             //            free(fixedDigest);
         } else {
             str = strtok_r(NULL, "\n", &member_end);
-            while (str != NULL && strcmp_case_insensitive(str, "\r")) { // HTTP Header
+            while (str != NULL && strcmp_case_insensitive(str, "\r") && member_end[0] != '\n') { // HTTP Header
                 str = strtok_r(NULL, "\n", &member_end);
             }
-
+            int lSize = member_end - member;
             char computedDigest[50];
-            hash((unsigned char*) member_end, algo, (unsigned char*) computedDigest);
+            /* TEST */
+            //            FILE* testout;
+            //            char filename[10];
+            //            sprintf(filename, "SentToHash");
+            //            testout = fopen(filename, "w");
+            //            fwrite(member_end, 1, z->total_out, testout);
+            //            fclose(testout);
+            /* END OF TEST */
+            hash((unsigned char*) member_end, algo, (unsigned char*) computedDigest, z->total_out - lSize);
             if (verbose) {
                 printf("Calculated digest:\t%s:%s \n", t, computedDigest);
             }
@@ -348,12 +354,12 @@ int process_member(char* member, char* manifest) {
 
     member_end = NULL;
     /* TEST */
-    FILE* doneFile;
-    doneFile = fopen("doneFile", "a");
-    char fileN[FILE_NAME_LENGTH];
-    sprintf(fileN, "%d\n", curOff);
-    fwrite(fileN, 1, strlen(fileN), doneFile);
-    fclose(doneFile);
+    //    FILE* doneFile;
+    //    doneFile = fopen("doneFile", "a");
+    //    char fileN[FILE_NAME_LENGTH];
+    //    sprintf(fileN, "%d\n", curOff);
+    //    fwrite(fileN, 1, strlen(fileN), doneFile);
+    //    fclose(doneFile);
     /* END of TEST */
     return 0;
 }
@@ -361,17 +367,20 @@ int process_member(char* member, char* manifest) {
 int manifest(char* warcFileName, char* manifestFileName) {
 
     //int manifest(void) {
-    printf("%s\n%s\n", warcFileName, manifestFileName);
+    char temp_FILENAME[FILE_NAME_LENGTH];
+    strcpy(temp_FILENAME, warcFileName);
+    printf("%s\n%s\n", temp_FILENAME, manifestFileName);
 
     FILE* warcFile;
     FILE* manifestFile;
-    warcFile = fopen(warcFileName, "r");
-
+    warcFile = fopen(temp_FILENAME, "r");
+    if (warcFile == NULL) {
+        printf("ERROR opening file!!");
+        exit(1);
+    }
     /* Inflate Member to member */
     long int START = 0, END = 0, C_SIZE = 0;
     char FILENAME[FILE_NAME_LENGTH];
-    char temp_FILENAME[FILE_NAME_LENGTH];
-    strcpy(temp_FILENAME, warcFileName);
     char* pch;
     char* pch_end;
     pch = strtok_r(temp_FILENAME, "/\\", &pch_end);
@@ -384,41 +393,48 @@ int manifest(char* warcFileName, char* manifestFileName) {
     fseek(warcFile, 0, SEEK_END);
     long fsize = ftell(warcFile);
     fseek(warcFile, 0, SEEK_SET);
-
     z_stream z;
 
     START = ftell(warcFile);
     while (ftell(warcFile) != fsize) {
-        //{
-        //        unsigned char member[MEMBER_SIZE];
-        //        unsigned char memberBak[MEMBER_SIZE];
+        unsigned char member[MEMBER_SIZE];
+
         START = ftell(warcFile);
         curOff = START;
-        //        fseek(warcFile, 109924, SEEK_SET);
-        inflateMember(warcFile, &z, member, MEMBER_SIZE);
-        member[strlen(member) - 4] = '\0';
+        gzmInflateInit(&z);
 
-        //strcpy(memberBak, member);
+        inflateMember(warcFile, &z, member, MEMBER_SIZE);
+
+        (void) inflateEnd(&z);
+
         END = ftell(warcFile);
+        if (END == fsize) {
+            END--;
+        }
         //        printf("length before *** %d\n", strlen(member));
         C_SIZE = END - START;
         //        curOff = END;
         if (verbose) {
             printf("Member inflated at %d through %d\n", START, END);
         }
+        //        printf("%s", member);
+        //        exit(1);
+        z.total_out -= 4;
+        /* TEST */
+        //        FILE* testout;
+        //        char filename[10];
+        //        sprintf(filename, "mem/%d", START);
+        //        testout = fopen(filename, "w");
+        //        fwrite(member, 1, z.total_out, testout);
+        //        fclose(testout);
+        /* END OF TEST */
+
+        //strcpy(memberBak, member);
 
 
 
         char manifest[MANIFEST_LINE_SIZE];
-        int status = process_member(member, manifest);
-        //        /* TEST */
-        //        FILE* testout;
-        //        char filename[10];
-        //        sprintf(filename, "mem/%d-%d", status, START);
-        //        testout = fopen(filename, "w");
-        //        fwrite(memberBak, 1, strlen(memberBak), testout);
-        //        fclose(testout);
-        //        /* END OF TEST */
+        int status = process_member(member, manifest, &z);
 
         if (status) {
             continue;
@@ -443,36 +459,32 @@ int manifest(char* warcFileName, char* manifestFileName) {
         }
         fclose(manifestFile);
     }
+
     return 0;
 }
 
-int list_directory(char *input_dir, struct dirent ***files) {
-    //    struct dirent **files;
+void list_directory(char *input_dir, int *number, char*** file_names) {
+    struct dirent **files;
     char new_path[1000];
-    //    FILE *f_read;
-    //    FILE *f_write = fopen(output_file, "a");
-    //    long f_size;
     struct stat st;
     int i;
-    int number = scandir(input_dir, files, 0, versionsort);
-    if (number < 0) {
+    *number = scandir(input_dir, &files, 0, versionsort);
+    *file_names = malloc(*number);
+    if (*number < 0) {
         perror(input_dir);
     } else {
-        for (i = 0; i < number; i++) {
+        for (i = 0; i < *number; i++) {
+            (*file_names)[i] = malloc(FILE_NAME_LENGTH);
             // new_path contains relative path from the directory
-            sprintf(new_path, "%s/%s", input_dir, (*files)[i]->d_name);
-            strcpy((*files)[i]->d_name, new_path);
-            //Skip the current directory, the parent directory, and any subdirectories
-            stat(new_path, &st);
-            if (!strcmp((*files)[i]->d_name, ".")
-                    || !strcmp((*files)[i]->d_name, "..") || S_ISDIR(st.st_mode)) {
-                strcpy((*files)[i]->d_name, "");
-
+            sprintf(new_path, "%s/%s", input_dir, files[i]->d_name);
+            if (!strcmp(files[i]->d_name, ".")
+                    || !strcmp(files[i]->d_name, "..") || S_ISDIR(st.st_mode)) {
+                (*file_names)[i] = ".";
+                continue;
             }
-            //                        printf("Adding %s file\n", new_path);
+            strcpy((*file_names)[i], new_path);
         }
     }
-    return number;
 }
 
 int main(int argc, char **argv) {
@@ -529,17 +541,19 @@ int main(int argc, char **argv) {
         //manifest(warcFileName, manifestFileName);
         manifest(warcFileName, manifestFileName);
     } else {
-        struct dirent **files;
-        int n = list_directory(warcFileName, &files);
+        int n;
+        char** file_names;
+        list_directory(warcFileName, &n, &file_names);
         int i;
+
         for (i = 0; i < n; i++) {
-            if (strcmp(files[i]->d_name, "")) {
-                manifest(files[i]->d_name, manifestFileName);
+            if (strcmp(file_names[i], ".")) {
+                manifest(file_names[i], manifestFileName);
             }
         }
-        for (i = 0; i < n; i++) {
-            free(files[i]);
-        }
+        //        for (i = 0; i < n; i++) {
+        //            free(files[i]);
+        //        }
 
     }
     return 0;

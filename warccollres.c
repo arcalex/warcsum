@@ -1,6 +1,6 @@
 /*
  * warccollres.c
- * Copyright (C) 2013 Khaled Salim <khaled.salim@bibalex.org>
+ * Copyright (C) 2014 Khaled Salim <khaled.salim@bibalex.org>
  * 
  * warccollres is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -155,7 +155,7 @@ char* getURLfromDB(MYSQL *conn, char* filename) {
 
     /* send SQL query */
     char temp[] = "SELECT url FROM `path_index` WHERE filename = ";
-    char *query = (char*) malloc(strlen(temp) + strlen(filename) + 3);
+    char *query = (char*) malloc(strlen(temp) + strlen(filename) + 2);
     strcpy(query, temp);
     int size = strlen(query);
     query[size] = '\'';
@@ -165,7 +165,7 @@ char* getURLfromDB(MYSQL *conn, char* filename) {
     query[size] = '\'';
     query[size + 1] = '\0';
 
-    if (mysql_query(conn, /*query*/ "show tables")) {
+    if (mysql_query(conn, query)) {
         fprintf(stderr, "%s\n", mysql_error(conn));
         exit(1);
     }
@@ -234,7 +234,7 @@ MemoryStruct* httpDLFile(char *url, int offset, int length) {
     sprintf(range, "%d-%d", offset, offset + length - 1);
     MemoryStruct *chunk = malloc(sizeof (MemoryStruct));
 
-    chunk->memory = malloc(1); /* will be grown as needed by the realloc above */
+    chunk->memory = (char*) malloc(1); /* will be grown as needed by the realloc above */
     chunk->size = 0; /* no data at this point */
 
     /* init the curl session */
@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
     if (iFile == NULL) {
         const char *temp = "manifest";
         iFile = malloc(9);
-        strcpy(dbFile, temp);
+        strcpy(iFile, temp);
         if (!quite)
             printf("Using %s as the input file...\n", iFile);
     }
@@ -373,14 +373,14 @@ int main(int argc, char** argv) {
     } else {
 
         /* Connecting to the database where the URLs are available */
-        MYSQL *conn;
-        FILE *dbSet = fopen(dbFile, "r");
-        if (dbSet) {
-            conn = mySQLConnect(dbSet, conn);
-            fclose(dbSet);
-        } else {
-            printf("Error: Could not open the database's settings file.\nAborting...");
-        }
+                MYSQL *conn;
+                FILE *dbSet = fopen(dbFile, "r");
+                if (dbSet) {
+                    conn = mySQLConnect(dbSet, conn);
+                    fclose(dbSet);
+                } else {
+                    printf("Error: Could not open the database's settings file.\nAborting...");
+                }
         free(dbFile);
         /* Start processing the input file */
         FILE* output = fopen(oFile, "w");
@@ -396,18 +396,18 @@ int main(int argc, char** argv) {
             line = NULL;
             /* Obtain the URL where the file is located from the database */
             char *url;
-            url = getURLfromDB(conn, currentRec->filename);
-            if (url == NULL) {
-                if (!quite && verbose)
-                    printf("Could not find a server for the processed record.\n");
-                destroyRecord(currentRec);
-                continue;
-            }
+                        url = getURLfromDB(conn, currentRec->filename);
+                        if (url == NULL) {
+                            if (!quite && verbose)
+                                printf("Could not find a server for the processed record.\n");
+                            destroyRecord(currentRec);
+                            continue;
+                        }
             /* Get the date from the HTTP server */
-            currentRec->data = httpDLFile(currentRec->uri
+            currentRec->data = httpDLFile(url
                     , currentRec->offset
                     , currentRec->length);
-            free(url);
+//            free(url);
             /* Adding the first record to the has cluster */
             if (recList == NULL) {
                 recList = currentRec;

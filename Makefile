@@ -51,12 +51,12 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = warcsum$(EXEEXT)
+bin_PROGRAMS = warcsum$(EXEEXT) warccollres$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(dist_bin_SCRIPTS) \
 	$(include_HEADERS) $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
-	depcomp install-sh missing
+	compile depcomp install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -69,9 +69,16 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(includedir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_warcsum_OBJECTS = warcsum.$(OBJEXT)
+am_warccollres_OBJECTS = warccollres-warccollres.$(OBJEXT)
+warccollres_OBJECTS = $(am_warccollres_OBJECTS)
+warccollres_LDADD = $(LDADD)
+warccollres_LINK = $(CCLD) $(warccollres_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+am_warcsum_OBJECTS = warcsum-warcsum.$(OBJEXT)
 warcsum_OBJECTS = $(am_warcsum_OBJECTS)
-warcsum_DEPENDENCIES =
+warcsum_LDADD = $(LDADD)
+warcsum_LINK = $(CCLD) $(warcsum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -108,8 +115,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(warcsum_SOURCES)
-DIST_SOURCES = $(warcsum_SOURCES)
+SOURCES = $(warccollres_SOURCES) $(warcsum_SOURCES)
+DIST_SOURCES = $(warccollres_SOURCES) $(warcsum_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -133,26 +140,26 @@ distuninstallcheck_listfiles = find . -type f -print
 am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/kms/sandbox/warcsum/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
-AUTOCONF = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/kms/sandbox/warcsum/missing --run automake-1.11
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2 -lcrypto
+CFLAGS = -g -O2
+CPP = gcc -E
 CPPFLAGS = 
-CXX = g++
-CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2
 CYGPATH_W = echo
-DEFS = -DPACKAGE_NAME=\"warcsum\" -DPACKAGE_TARNAME=\"warcsum\" -DPACKAGE_VERSION=\"0.1\" -DPACKAGE_STRING=\"warcsum\ 0.1\" -DPACKAGE_BUGREPORT=\"archive@bibalex.org\" -DPACKAGE_URL=\"\" -DPACKAGE=\"warcsum\" -DVERSION=\"0.1\"
+DEFS = -DPACKAGE_NAME=\"warcsum\" -DPACKAGE_TARNAME=\"warcsum\" -DPACKAGE_VERSION=\"0.1\" -DPACKAGE_STRING=\"warcsum\ 0.1\" -DPACKAGE_BUGREPORT=\"archive@bibalex.org\" -DPACKAGE_URL=\"\" -DPACKAGE=\"warcsum\" -DVERSION=\"0.1\" -DHAVE_LIBCRYPTO=1 -DHAVE_LIBCURL=1 -DHAVE_LIBDL=1 -DHAVE_LIBM=1 -DHAVE_LIBMYSQLCLIENT=1 -DHAVE_LIBPTHREAD=1 -DHAVE_LIBRT=1 -DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_UNISTD_H=1 -DHAVE__BOOL=1 -DHAVE_STDLIB_H=1 -DHAVE_MALLOC=1 -DHAVE_STDLIB_H=1 -DHAVE_REALLOC=1
 DEPDIR = .deps
 ECHO_C = 
 ECHO_N = -n
 ECHO_T = 
+EGREP = /bin/grep -E
 EXEEXT = 
+GREP = /bin/grep
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
@@ -160,9 +167,9 @@ INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
-LIBS = 
+LIBS = -lrt -lpthread -lmysqlclient -lm -ldl -lcurl -lcrypto 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/kms/sandbox/warcsum/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = warcsum
@@ -177,12 +184,11 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = 
 VERSION = 0.1
-abs_builddir = /home/wsl/NetBeansProjects/warcsum
-abs_srcdir = /home/wsl/NetBeansProjects/warcsum
-abs_top_builddir = /home/wsl/NetBeansProjects/warcsum
-abs_top_srcdir = /home/wsl/NetBeansProjects/warcsum
+abs_builddir = /home/kms/sandbox/warcsum
+abs_srcdir = /home/kms/sandbox/warcsum
+abs_top_builddir = /home/kms/sandbox/warcsum
+abs_top_srcdir = /home/kms/sandbox/warcsum
 ac_ct_CC = gcc
-ac_ct_CXX = g++
 am__include = include
 am__leading_dot = .
 am__quote = 
@@ -200,7 +206,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/wsl/NetBeansProjects/warcsum/install-sh
+install_sh = ${SHELL} /home/kms/sandbox/warcsum/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -221,16 +227,17 @@ top_build_prefix =
 top_builddir = .
 top_srcdir = .
 warcsum_SOURCES = \
-  warcsum.h \
   warcsum.c
 
+include_HEADERS = warcsum.h
+warcsum_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcrypto
+warccollres_SOURCES = \
+  warccollres.c
+
+warccollres_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql -DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lm -lrt -ldl
 dist_bin_SCRIPTS = \
   warcsumproc
 
-
-#warcsum_LDADD = -lz $(pkg-config --cflags --libs glib-2.0) -lgzmulti
-warcsum_LDADD = -lz -lgzmulti -lcrypto
-include_HEADERS = warcsum.h
 all: all-am
 
 .SUFFIXES:
@@ -309,9 +316,12 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
+warccollres$(EXEEXT): $(warccollres_OBJECTS) $(warccollres_DEPENDENCIES) $(EXTRA_warccollres_DEPENDENCIES) 
+	@rm -f warccollres$(EXEEXT)
+	$(warccollres_LINK) $(warccollres_OBJECTS) $(warccollres_LDADD) $(LIBS)
 warcsum$(EXEEXT): $(warcsum_OBJECTS) $(warcsum_DEPENDENCIES) $(EXTRA_warcsum_DEPENDENCIES) 
 	@rm -f warcsum$(EXEEXT)
-	$(LINK) $(warcsum_OBJECTS) $(warcsum_LDADD) $(LIBS)
+	$(warcsum_LINK) $(warcsum_OBJECTS) $(warcsum_LDADD) $(LIBS)
 install-dist_binSCRIPTS: $(dist_bin_SCRIPTS)
 	@$(NORMAL_INSTALL)
 	@list='$(dist_bin_SCRIPTS)'; test -n "$(bindir)" || list=; \
@@ -354,7 +364,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/warcsum.Po
+include ./$(DEPDIR)/warccollres-warccollres.Po
+include ./$(DEPDIR)/warcsum-warcsum.Po
 
 .c.o:
 	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -369,6 +380,34 @@ include ./$(DEPDIR)/warcsum.Po
 #	source='$<' object='$@' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+warccollres-warccollres.o: warccollres.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warccollres_CFLAGS) $(CFLAGS) -MT warccollres-warccollres.o -MD -MP -MF $(DEPDIR)/warccollres-warccollres.Tpo -c -o warccollres-warccollres.o `test -f 'warccollres.c' || echo '$(srcdir)/'`warccollres.c
+	$(am__mv) $(DEPDIR)/warccollres-warccollres.Tpo $(DEPDIR)/warccollres-warccollres.Po
+#	source='warccollres.c' object='warccollres-warccollres.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warccollres_CFLAGS) $(CFLAGS) -c -o warccollres-warccollres.o `test -f 'warccollres.c' || echo '$(srcdir)/'`warccollres.c
+
+warccollres-warccollres.obj: warccollres.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warccollres_CFLAGS) $(CFLAGS) -MT warccollres-warccollres.obj -MD -MP -MF $(DEPDIR)/warccollres-warccollres.Tpo -c -o warccollres-warccollres.obj `if test -f 'warccollres.c'; then $(CYGPATH_W) 'warccollres.c'; else $(CYGPATH_W) '$(srcdir)/warccollres.c'; fi`
+	$(am__mv) $(DEPDIR)/warccollres-warccollres.Tpo $(DEPDIR)/warccollres-warccollres.Po
+#	source='warccollres.c' object='warccollres-warccollres.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warccollres_CFLAGS) $(CFLAGS) -c -o warccollres-warccollres.obj `if test -f 'warccollres.c'; then $(CYGPATH_W) 'warccollres.c'; else $(CYGPATH_W) '$(srcdir)/warccollres.c'; fi`
+
+warcsum-warcsum.o: warcsum.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warcsum_CFLAGS) $(CFLAGS) -MT warcsum-warcsum.o -MD -MP -MF $(DEPDIR)/warcsum-warcsum.Tpo -c -o warcsum-warcsum.o `test -f 'warcsum.c' || echo '$(srcdir)/'`warcsum.c
+	$(am__mv) $(DEPDIR)/warcsum-warcsum.Tpo $(DEPDIR)/warcsum-warcsum.Po
+#	source='warcsum.c' object='warcsum-warcsum.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warcsum_CFLAGS) $(CFLAGS) -c -o warcsum-warcsum.o `test -f 'warcsum.c' || echo '$(srcdir)/'`warcsum.c
+
+warcsum-warcsum.obj: warcsum.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warcsum_CFLAGS) $(CFLAGS) -MT warcsum-warcsum.obj -MD -MP -MF $(DEPDIR)/warcsum-warcsum.Tpo -c -o warcsum-warcsum.obj `if test -f 'warcsum.c'; then $(CYGPATH_W) 'warcsum.c'; else $(CYGPATH_W) '$(srcdir)/warcsum.c'; fi`
+	$(am__mv) $(DEPDIR)/warcsum-warcsum.Tpo $(DEPDIR)/warcsum-warcsum.Po
+#	source='warcsum.c' object='warcsum-warcsum.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warcsum_CFLAGS) $(CFLAGS) -c -o warcsum-warcsum.obj `if test -f 'warcsum.c'; then $(CYGPATH_W) 'warcsum.c'; else $(CYGPATH_W) '$(srcdir)/warcsum.c'; fi`
 install-includeHEADERS: $(include_HEADERS)
 	@$(NORMAL_INSTALL)
 	@list='$(include_HEADERS)'; test -n "$(includedir)" || list=; \

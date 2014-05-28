@@ -76,7 +76,7 @@ warccollres_LINK = $(CCLD) $(warccollres_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 am_warcsum_OBJECTS = warcsum-warcsum.$(OBJEXT)
 warcsum_OBJECTS = $(am_warcsum_OBJECTS)
-warcsum_LDADD = $(LDADD)
+warcsum_DEPENDENCIES =
 warcsum_LINK = $(CCLD) $(warcsum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -231,10 +231,14 @@ warcsum_SOURCES = \
 
 include_HEADERS = warcsum.h
 warcsum_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcrypto
+warcsum_LDADD = -lz -lgzmulti -lcrypto
 warccollres_SOURCES = \
   warccollres.c
 
-warccollres_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql -DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lm -lrt -ldl
+warccollres_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql \
+-DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu \
+-lmysqlclient -lpthread -lm -lrt -ldl -lgzmulti
+
 dist_bin_SCRIPTS = \
   warcsumproc
 

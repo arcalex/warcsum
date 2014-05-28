@@ -60,6 +60,7 @@
 #define URL_LENGTH 2*1024
 #define DATE_LENGTH 32
 #define KEY_LENGTH 32
+#define DIGEST_LENGTH 64
 
 /*
  * Hashes input char* using algo (1: md5, 2:sha1, 3:sha256) and 

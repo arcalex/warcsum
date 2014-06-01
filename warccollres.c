@@ -112,12 +112,14 @@ void dumpHashCluster(FILE* output, Record *recList, bool proc) {
                     , tempRec->date
                     , tempRec->hash
                     , tempRec->ext);
-            if (proc)
-                fprintf(output, " %d %s %s"
-                    , tempRec->copyNo
-                    , tempColl->uri
-                    , tempColl->date);
-            fprintf(output, "\n");
+            if (proc) {
+                fprintf(output, " %d", tempRec->copyNo);
+                if (tempRec->copyNo != 1)
+                    fprintf(output, " %s %s"
+                        , tempColl->uri
+                        , tempColl->date);
+                fprintf(output, "\n");
+            }
             /* Preparing the next record */
             tempRec = tempRec->next;
         }
@@ -179,8 +181,7 @@ char* getURLfromDB(MYSQL *conn, char* filename) {
 }
 
 bool compRec(Record *first, Record *second) {
-    if (first->data->size != second->data->size)
-        return false;
+
     long firstIndex = 0, secondIndex = 0;
     //Seeking to the end of the WARC header of the first record.
     for (firstIndex; first->data->memory[firstIndex] != '\n' || \
@@ -267,8 +268,9 @@ MemoryStruct* httpDLFile(char *url, int offset, int length) {
 
         z_stream z;
         unsigned char *member = malloc(1024000);
-
+        gzmInflateInit(&z);
         inflateMember(outf, &z, member, 1024000);
+        inflateEnd(&z);
         fclose(outf);
 
         free(chunk->memory);
@@ -301,7 +303,7 @@ int main(int argc, char** argv) {
         {"verbose", no_argument, 0, 'v'},
         {0, 0, 0, 0}
     };
-    while ((opt = getopt_long(argc, argv, "i:o:pqv",
+    while ((opt = getopt_long(argc, argv, "i:o:s:pqv",
             long_options, &option_index)) != -1) {
         switch (opt) {
             case 'i':
@@ -318,6 +320,14 @@ int main(int argc, char** argv) {
                     strcpy(oFile, optarg);
                 } else {
                     printf("No output file was specified.\n");
+                }
+                break;
+            case 's':
+                if (strlen(optarg) > 0 && optarg[0] != '-') {
+                    dbFile = malloc(strlen(optarg));
+                    strcpy(dbFile, optarg);
+                } else {
+                    printf("No database settings file was specified.\n");
                 }
                 break;
             case 'p':
@@ -373,14 +383,14 @@ int main(int argc, char** argv) {
     } else {
 
         /* Connecting to the database where the URLs are available */
-                MYSQL *conn;
-                FILE *dbSet = fopen(dbFile, "r");
-                if (dbSet) {
-                    conn = mySQLConnect(dbSet, conn);
-                    fclose(dbSet);
-                } else {
-                    printf("Error: Could not open the database's settings file.\nAborting...");
-                }
+        MYSQL *conn;
+        FILE *dbSet = fopen(dbFile, "r");
+        if (dbSet) {
+            conn = mySQLConnect(dbSet, conn);
+            fclose(dbSet);
+        } else {
+            printf("Error: Could not open the database's settings file.\nAborting...");
+        }
         free(dbFile);
         /* Start processing the input file */
         FILE* output = fopen(oFile, "w");
@@ -396,18 +406,18 @@ int main(int argc, char** argv) {
             line = NULL;
             /* Obtain the URL where the file is located from the database */
             char *url;
-                        url = getURLfromDB(conn, currentRec->filename);
-                        if (url == NULL) {
-                            if (!quite && verbose)
-                                printf("Could not find a server for the processed record.\n");
-                            destroyRecord(currentRec);
-                            continue;
-                        }
+            url = getURLfromDB(conn, currentRec->filename);
+            if (url == NULL) {
+                if (!quite && verbose)
+                    printf("Could not find a server for the processed record.\n");
+                destroyRecord(currentRec);
+                continue;
+            }
             /* Get the date from the HTTP server */
             currentRec->data = httpDLFile(url
                     , currentRec->offset
                     , currentRec->length);
-//            free(url);
+                        free(url);
             /* Adding the first record to the has cluster */
             if (recList == NULL) {
                 recList = currentRec;
@@ -459,6 +469,11 @@ int main(int argc, char** argv) {
                     dumpHashCluster(output, recList, proc);
                     /* Destroying the records of the old hash cluster */
                     destroyRecord(recList);
+                    recList = NULL;
+                    recList = currentRec;
+		    currentHash = currentRec->hash;
+                    currentRec->ext = 1;
+                    currentRec->copyNo = 1;
                 }
                 totalRecs++;
             }
@@ -469,10 +484,12 @@ int main(int argc, char** argv) {
         dumpHashCluster(output, recList, proc);
         /* Destroying the records of the remaining hash cluster */
         destroyRecord(recList);
+        recList = NULL;
+	mysql_close(conn);
         fclose(input);
         fclose(output);
         if (!quite)
-            printf("Processed record(s): %d.\nCollision(s) found: %d."
+            printf("Processed record(s): %d.\nCollision(s) found: %d.\n"
                 , totalRecs
                 , totalColls);
     }

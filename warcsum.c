@@ -4,7 +4,6 @@
  */
 #include "warcsum.h"
 
-int forceRecalc, decompress, verbose, recursive;
 char* WARC_HEADER = "WARC/1.0\r";
 char* CONTENT_LENGTH = "Content-Length";
 char* WARC_TYPE = "WARC-Type";
@@ -13,10 +12,9 @@ char* WARC_TARGET_URI = "WARC-Target-URI";
 char* WARC_DATE = "WARC-Date";
 char* CONTENT_TYPE = "Content-Type";
 
+int forceRecalc, verbose, recursive, input_set, output_set, type_set;
 short algo;
 char t[KEY_LENGTH];
-int curOff;
-
 
 const char * const b32_to_bin[] = {
   "00000",
@@ -210,6 +208,7 @@ strcmp_case_insensitive (char* a, char* b)
 int
 process_member (char* member, char* manifest, z_stream *z)
 {
+
   char FINAL_HASH[DIGEST_LENGTH];
   char DATE[DATE_LENGTH];
   char URI[URL_LENGTH];
@@ -219,11 +218,18 @@ process_member (char* member, char* manifest, z_stream *z)
   char type[10];
   char content_type[20];
   char* str;
-  char* member_end;
+  ssize_t read_length;
   short content_length_set = 0;
   short payload_digest_set = 0;
-
-  str = strtok_r (member, "\n", &member_end);
+  FILE* member_file;
+  member_file = fmemopen (member, z->total_out, "r");
+  size_t ZERO = 0;
+  read_length = getline (&str, &ZERO, member_file);
+  if (str[read_length - 1] == '\n')
+    {
+      str[read_length - 1] = '\0';
+    }
+  //  str = strtok_r (member, "\n", &member_end);
   if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER))
     {
       if (verbose)
@@ -233,9 +239,16 @@ process_member (char* member, char* manifest, z_stream *z)
 
       return 1;
     }
+  ZERO = 0;
+  read_length = getline (&str, &ZERO, member_file);
+  if (str[read_length - 1] == '\n')
+    {
+      str[read_length - 1] = '\0';
+    }
 
-  str = strtok_r (NULL, "\n", &member_end);
-  while (str != NULL && strcmp_case_insensitive (str, "\r")) // WARC Header
+  //  str = strtok_r (NULL, "\n", &member_end);
+  //  while (str != NULL && strcmp_case_insensitive (str, "\r")) // WARC Header
+  while (strcmp_case_insensitive (str, "\r") && strcmp_case_insensitive (str, "")) // WARC Header
     {
       char key[KEY_LENGTH], value[WARC_HEADER_SIZE];
       char *pch;
@@ -335,8 +348,15 @@ process_member (char* member, char* manifest, z_stream *z)
               printf ("Content-Type: %s \n", content_type);
             }
         }
+      ZERO = 0;
 
-      str = strtok_r (NULL, "\n", &member_end);
+      read_length = getline (&str, &ZERO, member_file);
+      if (str[read_length - 1] == '\n')
+        {
+          str[read_length - 1] = '\0';
+        }
+
+      //            str = strtok_r (NULL, "\n", &member_end);
     }
 
   if (strcmp_case_insensitive (type, "response"))
@@ -366,58 +386,70 @@ process_member (char* member, char* manifest, z_stream *z)
         }
       else
         {
-          printf ("=== %s ===\n", URI);
+          ZERO = 0;
 
-          str = strtok_r (NULL, "\n", &member_end);
-          while (str != NULL && strcmp_case_insensitive (str, "\r"))
-            { // HTTP Header
-              str = strtok_r (NULL, "\n", &member_end);
-              if (member_end[0] == '\n')
-                {
-                  member_end++;
-                  break;
-                }
+          read_length = getline (&str, &ZERO, member_file);
+          if (str[read_length - 1] == '\n')
+            {
+              str[read_length - 1] = '\0';
             }
-          int lSize = member_end - member;
-          char computedDigest[50];
+
+          //          str = strtok_r (NULL, "\n", &member_end);
+          while (str != NULL && (strcmp_case_insensitive (str, "\r") && strcmp_case_insensitive (str, "")))
+            { // HTTP Header
+              ZERO = 0;
+
+              read_length = getline (&str, &ZERO, member_file);
+              if (str[read_length - 1] == '\n')
+                {
+                  str[read_length - 1] = '\0';
+                }
+              //              str = strtok_r (NULL, "\n", &member_end);
+            }
+          int lSize = ftell (member_file);
+          char computedDigest[DIGEST_LENGTH];
+
+          char member_end[MEMBER_SIZE];
+          memcpy (member_end, &member[lSize], z->total_out - lSize);
+          fread (member_end, 1, z->total_out - lSize, member_file);
 
           hash ((unsigned char*) member_end, algo, (unsigned char*) computedDigest, z->total_out - lSize);
-          printf ("===== %s ===\n", URI);
+
           if (verbose)
             {
               printf ("Calculated digest:\t%s:%s \n", t, computedDigest);
             }
-          printf ("=== %s ===\n", URI);
+
           strcpy (FINAL_HASH, computedDigest);
-          printf ("=== %s ===\n", URI);
+
 
         }
 
     }
-  printf ("=== %s ===\n", URI);
+
 
   sprintf (manifest, "%s %s %s", URI, DATE, FINAL_HASH);
 
-  member_end = NULL;
   return 0;
 }
 
 int
 manifest (char* warcFileName, char* manifestFileName)
 {
-
-  //int manifest(void) {
   char temp_FILENAME[FILE_NAME_LENGTH];
   strcpy (temp_FILENAME, warcFileName);
-  printf ("%s\n%s\n", temp_FILENAME, manifestFileName);
+  if (verbose)
+    {
+      printf ("\n===================\n%s\n%s\n", temp_FILENAME, manifestFileName);
+    }
 
   FILE* warcFile;
   FILE* manifestFile;
   warcFile = fopen (temp_FILENAME, "r");
   if (warcFile == NULL)
     {
-      printf ("ERROR opening file!!");
-      exit (1);
+      printf ("ERROR opening file: %s\n!!", temp_FILENAME);
+      return 1;
     }
   /* Inflate Member to member */
   long int START = 0, END = 0, C_SIZE = 0;
@@ -443,9 +475,11 @@ manifest (char* warcFileName, char* manifestFileName)
       unsigned char member[MEMBER_SIZE];
 
       START = ftell (warcFile);
-      curOff = START;
       gzmInflateInit (&z);
-
+      if (verbose)
+        {
+          printf ("***\n");
+        }
       inflateMember (warcFile, &z, member, MEMBER_SIZE);
 
       (void) inflateEnd (&z);
@@ -460,7 +494,7 @@ manifest (char* warcFileName, char* manifestFileName)
       char manifest[MANIFEST_LINE_SIZE];
       if (verbose)
         {
-          printf ("\n\n\nProcessing offset: %d\n", START);
+          printf ("Processing offset: %d\n", START);
         }
 
       int status = process_member (member, manifest, &z);
@@ -496,44 +530,52 @@ manifest (char* warcFileName, char* manifestFileName)
   return 0;
 }
 
-void
-list_directory (char *input_dir, int *number, char*** file_names)
+char **
+directoryFiles (char *input_dir, int* file_count)
 {
-  struct dirent **files;
-  char new_path[1000];
+  struct dirent **rel_files;
   struct stat st;
   int i;
-  *number = scandir (input_dir, &files, 0, versionsort);
-  *file_names = malloc (*number);
-  if (*number < 0)
+  int j = 0;
+  *file_count = scandir (input_dir, &rel_files, 0, versionsort);
+  char** abs_files = (char**) malloc (*file_count * sizeof (char*));
+
+  if (*file_count < 0)
     {
       perror (input_dir);
     }
   else
     {
-      for (i = 0; i < *number; i++)
+      for (i = 0; i < *file_count; i++)
         {
-          (*file_names)[i] = malloc (FILE_NAME_LENGTH);
-          sprintf (new_path, "%s/%s", input_dir, files[i]->d_name);
-          if (!strcmp (files[i]->d_name, ".")
-              || !strcmp (files[i]->d_name, "..") || S_ISDIR (st.st_mode))
+          if (!strcmp (rel_files[i]->d_name, ".")
+              || !strcmp (rel_files[i]->d_name, "..") || S_ISDIR (st.st_mode))
             {
-              (*file_names)[i] = ".";
+              free (rel_files[i]);
               continue;
             }
-          strcpy ((*file_names)[i], new_path);
+          else
+            {
+              abs_files[j] = (char*) malloc (FILE_NAME_LENGTH * sizeof (char));
+              sprintf (abs_files[j++], "%s/%s", input_dir, rel_files[i]->d_name);
+              free (rel_files[i]);
+            }
         }
+      free (rel_files);
     }
+  *file_count = j;
+  return abs_files;
 }
 
 int
 main (int argc, char **argv)
 {
   forceRecalc = 0;
-  decompress = 0;
   verbose = 0;
   recursive = 0;
-
+  input_set = 0;
+  output_set = 0;
+  type_set = 0;
   int opt;
   char warcFileName[FILE_NAME_LENGTH];
   char manifestFileName[FILE_NAME_LENGTH];
@@ -555,9 +597,11 @@ main (int argc, char **argv)
       switch (opt)
         {
         case 'i':
+          input_set = 1;
           strcpy (warcFileName, optarg);
           break;
         case 't':
+          type_set = 1;
           strcpy (t, optarg);
           if (!strcmp_case_insensitive (t, "md5"))
             {
@@ -583,6 +627,7 @@ main (int argc, char **argv)
           forceRecalc = 1;
           break;
         case 'o':
+          output_set = 1;
           strcpy (manifestFileName, optarg);
           break;
         case 'v':
@@ -592,14 +637,22 @@ main (int argc, char **argv)
           recursive = 1;
           break;
         default:
-          fprintf (stderr, "Usage: %s [-i input file | required] "
+          fprintf (stderr, "Usage: warcsum [-i input file | required] "
                    "[-t hashing algorithm | required] "
                    "[-o output file | required] "
                    "[-f force digest calculation] "
-                   "[-r recursive] \n",
-                   argv[0]);
+                   "[-r recursive] \n");
           exit (EXIT_FAILURE);
         }
+    }
+  if (!input_set || !output_set || !type_set)
+    {
+      fprintf (stderr, "Usage: warcsum [-i input file | required] "
+               "[-t hashing algorithm | required] "
+               "[-o output file | required] "
+               "[-f force digest calculation] "
+               "[-r recursive] \n");
+      exit (EXIT_FAILURE);
     }
   if (!recursive)
     {
@@ -608,22 +661,15 @@ main (int argc, char **argv)
   else
     {
       int n;
-      char** file_names;
-      list_directory (warcFileName, &n, &file_names);
+      char** abs_files;
+      abs_files = directoryFiles (warcFileName, &n);
       int i;
-
       for (i = 0; i < n; i++)
         {
-          if (strcmp (file_names[i], "."))
-            {
-              manifest (file_names[i], manifestFileName);
-            }
+          manifest (abs_files[i], manifestFileName);
+          free (abs_files[i]);
         }
-      //      for (i = 0; i < n; i++)
-      //        {
-      //          free (file_names[i]);
-      //        }
-      //      free (file_names);
+      free (abs_files);
     }
   return 0;
 }

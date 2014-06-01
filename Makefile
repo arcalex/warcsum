@@ -76,11 +76,7 @@ warccollres_LINK = $(CCLD) $(warccollres_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 am_warcsum_OBJECTS = warcsum-warcsum.$(OBJEXT)
 warcsum_OBJECTS = $(am_warcsum_OBJECTS)
-
-
-
-warcsum_LDADD = $(LDADD)
-
+warcsum_DEPENDENCIES =
 warcsum_LINK = $(CCLD) $(warcsum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -144,11 +140,11 @@ distuninstallcheck_listfiles = find . -type f -print
 am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/kms/sandbox/warcsum/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
-AUTOCONF = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/kms/sandbox/warcsum/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run automake-1.11
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -173,7 +169,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = -lrt -lpthread -lmysqlclient -lm -ldl -lcurl -lcrypto 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/kms/sandbox/warcsum/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = warcsum
@@ -188,10 +184,10 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = 
 VERSION = 0.1
-abs_builddir = /home/kms/sandbox/warcsum
-abs_srcdir = /home/kms/sandbox/warcsum
-abs_top_builddir = /home/kms/sandbox/warcsum
-abs_top_srcdir = /home/kms/sandbox/warcsum
+abs_builddir = /home/wsl/NetBeansProjects/warcsum
+abs_srcdir = /home/wsl/NetBeansProjects/warcsum
+abs_top_builddir = /home/wsl/NetBeansProjects/warcsum
+abs_top_srcdir = /home/wsl/NetBeansProjects/warcsum
 ac_ct_CC = gcc
 am__include = include
 am__leading_dot = .
@@ -210,7 +206,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/kms/sandbox/warcsum/install-sh
+install_sh = ${SHELL} /home/wsl/NetBeansProjects/warcsum/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -235,7 +231,6 @@ warcsum_SOURCES = \
 
 include_HEADERS = warcsum.h
 warcsum_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcrypto
-
 warcsum_LDADD = -lz -lgzmulti -lcrypto
 warccollres_SOURCES = \
   warccollres.c

@@ -17,7 +17,6 @@
 
 
 
-
 am__make_dryrun = \
   { \
     am__dry=no; \
@@ -54,7 +53,7 @@ POST_UNINSTALL = :
 bin_PROGRAMS = warcsum$(EXEEXT) warccollres$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(dist_bin_SCRIPTS) \
-	$(include_HEADERS) $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
 	compile depcomp install-sh missing
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -66,8 +65,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
 mkinstalldirs = $(install_sh) -d
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(includedir)"
+am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_warccollres_OBJECTS = warccollres-warccollres.$(OBJEXT)
 warccollres_OBJECTS = $(am_warccollres_OBJECTS)
@@ -76,7 +74,7 @@ warccollres_LINK = $(CCLD) $(warccollres_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 am_warcsum_OBJECTS = warcsum-warcsum.$(OBJEXT)
 warcsum_OBJECTS = $(am_warcsum_OBJECTS)
-warcsum_DEPENDENCIES =
+warcsum_LDADD = $(LDADD)
 warcsum_LINK = $(CCLD) $(warcsum_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
@@ -122,7 +120,6 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-HEADERS = $(include_HEADERS)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -140,11 +137,11 @@ distuninstallcheck_listfiles = find . -type f -print
 am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
-ACLOCAL = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run aclocal-1.11
+ACLOCAL = ${SHELL} /home/kms/sandbox/warcsum/missing --run aclocal-1.11
 AMTAR = $${TAR-tar}
-AUTOCONF = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run automake-1.11
+AUTOCONF = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/kms/sandbox/warcsum/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/kms/sandbox/warcsum/missing --run automake-1.11
 AWK = mawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -169,7 +166,7 @@ LDFLAGS =
 LIBOBJS = 
 LIBS = -lrt -lpthread -lmysqlclient -lm -ldl -lcurl -lcrypto 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/wsl/NetBeansProjects/warcsum/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/kms/sandbox/warcsum/missing --run makeinfo
 MKDIR_P = /bin/mkdir -p
 OBJEXT = o
 PACKAGE = warcsum
@@ -184,10 +181,10 @@ SET_MAKE =
 SHELL = /bin/bash
 STRIP = 
 VERSION = 0.1
-abs_builddir = /home/wsl/NetBeansProjects/warcsum
-abs_srcdir = /home/wsl/NetBeansProjects/warcsum
-abs_top_builddir = /home/wsl/NetBeansProjects/warcsum
-abs_top_srcdir = /home/wsl/NetBeansProjects/warcsum
+abs_builddir = /home/kms/sandbox/warcsum
+abs_srcdir = /home/kms/sandbox/warcsum
+abs_top_builddir = /home/kms/sandbox/warcsum
+abs_top_srcdir = /home/kms/sandbox/warcsum
 ac_ct_CC = gcc
 am__include = include
 am__leading_dot = .
@@ -206,7 +203,7 @@ host_alias =
 htmldir = ${docdir}
 includedir = ${prefix}/include
 infodir = ${datarootdir}/info
-install_sh = ${SHELL} /home/wsl/NetBeansProjects/warcsum/install-sh
+install_sh = ${SHELL} /home/kms/sandbox/warcsum/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localedir = ${datarootdir}/locale
@@ -229,16 +226,14 @@ top_srcdir = .
 warcsum_SOURCES = \
   warcsum.c
 
-include_HEADERS = warcsum.h
-warcsum_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcrypto
-warcsum_LDADD = -lz -lgzmulti -lcrypto
+warcsum_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcrypto -lgzmulti
+warcsum_MANS = \
+  warcsum.1
+
 warccollres_SOURCES = \
   warccollres.c
 
-warccollres_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql \
--DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu \
--lmysqlclient -lpthread -lm -lrt -ldl -lgzmulti
-
+warccollres_CFLAGS = -Wl,-rpath -Wl,LIBDIR -lcurl -I/usr/include/mysql -DBIG_JOINS=1 -fno-strict-aliasing -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lm -lrt -ldl -lgzmulti
 dist_bin_SCRIPTS = \
   warcsumproc
 
@@ -412,27 +407,6 @@ warcsum-warcsum.obj: warcsum.c
 #	source='warcsum.c' object='warcsum-warcsum.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(warcsum_CFLAGS) $(CFLAGS) -c -o warcsum-warcsum.obj `if test -f 'warcsum.c'; then $(CYGPATH_W) 'warcsum.c'; else $(CYGPATH_W) '$(srcdir)/warcsum.c'; fi`
-install-includeHEADERS: $(include_HEADERS)
-	@$(NORMAL_INSTALL)
-	@list='$(include_HEADERS)'; test -n "$(includedir)" || list=; \
-	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(includedir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(includedir)" || exit 1; \
-	fi; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(includedir)" || exit $$?; \
-	done
-
-uninstall-includeHEADERS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(include_HEADERS)'; test -n "$(includedir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(includedir)'; $(am__uninstall_files_from_dir)
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -650,9 +624,9 @@ distcleancheck: distclean
 	       exit 1; } >&2
 check-am: all-am
 check: check-am
-all-am: Makefile $(PROGRAMS) $(SCRIPTS) $(HEADERS)
+all-am: Makefile $(PROGRAMS) $(SCRIPTS)
 installdirs:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(bindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -708,7 +682,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-includeHEADERS
+install-data-am:
 
 install-dvi: install-dvi-am
 
@@ -755,8 +729,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
-	uninstall-includeHEADERS
+uninstall-am: uninstall-binPROGRAMS uninstall-dist_binSCRIPTS
 
 .MAKE: install-am install-strip
 
@@ -769,14 +742,13 @@ uninstall-am: uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
 	install install-am install-binPROGRAMS install-data \
 	install-data-am install-dist_binSCRIPTS install-dvi \
 	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-includeHEADERS install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-dist_binSCRIPTS \
-	uninstall-includeHEADERS
+	install-html-am install-info install-info-am install-man \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
+	tags uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-dist_binSCRIPTS
 
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

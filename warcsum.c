@@ -606,31 +606,36 @@ manifest (char* warcFileName, char* manifestFileName)
 char **
 directoryFiles (char *input_dir, int* file_count)
 {
-  struct dirent **rel_files;
+  struct dirent **rel_files = NULL;
   struct stat st;
   int i;
   int j = 0;
   *file_count = scandir (input_dir, &rel_files, 0, versionsort);
-  char** abs_files = (char**) malloc (*file_count * sizeof (char*));
+  char** abs_files = (char**) calloc (*file_count, sizeof (char*));
 
   if (*file_count < 0)
     {
+      free (abs_files);
       perror (input_dir);
     }
   else
     {
       for (i = 0; i < *file_count; i++)
         {
+          char* abs_file = (char*) calloc (FILE_NAME_LENGTH, sizeof (char));
+          sprintf (abs_file, "%s/%s", input_dir, rel_files[i]->d_name);
+
+          lstat (abs_file, &st);
           if (!strcmp (rel_files[i]->d_name, ".")
-              || !strcmp (rel_files[i]->d_name, "..") || S_ISDIR (st.st_mode))
+              || !strcmp (rel_files[i]->d_name, "..") || !S_ISREG (st.st_mode))
             {
               free (rel_files[i]);
+              free (abs_file);
               continue;
             }
           else
             {
-              abs_files[j] = (char*) malloc (FILE_NAME_LENGTH * sizeof (char));
-              sprintf (abs_files[j++], "%s/%s", input_dir, rel_files[i]->d_name);
+              abs_files[j++] = abs_file;
               free (rel_files[i]);
             }
         }

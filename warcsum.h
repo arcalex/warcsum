@@ -48,11 +48,12 @@
 #include <dirent.h>
 #include <sys/dir.h>
 #include <gzmulti.h>
+#include <time.h>
 //#define _SVID_SOURCE
 //#define _BSD_SOURCE
 
 
-#define MEMBER_SIZE 2*1024*1024
+#define MEMBER_SIZE 128*1024*1024
 #define WARC_HEADER_SIZE 10*1024
 #define HTTP_HEADER_SIZE 10*1024
 #define MANIFEST_LINE_SIZE 4*1024

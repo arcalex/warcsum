@@ -15,8 +15,10 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "warccollres.h"
+#include <time.h>
 
-
+clock_t start, end;
+double compareTime = 0, downloadTime = 0, databaseTime = 0;
 
 Record*
 createRecord (char * line)
@@ -42,7 +44,6 @@ createRecord (char * line)
   token = strtok (NULL, " ");
   object->hash = malloc (strlen (token) + 1);
   strcpy (object->hash, token);
-  object->hash[strlen (token) - 1] = '\0';
   return object;
 }
 
@@ -60,8 +61,10 @@ destroyRecord (Record *object)
     free (object->date);
   if (object->hash)
     free (object->hash);
-  if (object->data != NULL && object->data->memory && object->data->size > 0)
+  if (object->data != NULL && object->data->size > 0)
     free (object->data->memory);
+  if (object->data != NULL)
+    free (object->data);
   object->filename = NULL;
   object->uri = NULL;
   object->hash = NULL;
@@ -99,12 +102,15 @@ dumpHashCluster (FILE* output, Record *recList, bool proc)
           if (proc)
             {
               fprintf (output, " %d", tempRec->copyNo);
-              if (tempRec->copyNo != 1)
-                fprintf (output, " %s %s - -"
+              if (tempRec->copyNo == 1)
+                fprintf (output, " - -");
+              else
+                fprintf (output, " %s %s"
                          , tempColl->uri
                          , tempColl->date);
-              fprintf (output, "\n");
+
             }
+          fprintf (output, "\n");
           /* Preparing the next record */
           tempRec = tempRec->next;
         }
@@ -112,10 +118,10 @@ dumpHashCluster (FILE* output, Record *recList, bool proc)
     }
 }
 
-MYSQL*
-mySQLConnect (FILE *dbSet, MYSQL *conn)
+MYSQL *
+mySQLConnect (FILE *dbSet, MYSQL * conn)
 {
-  char *server, *user, *password, *database;
+  char *server = NULL, *user = NULL, *password = NULL, *database = NULL;
   size_t len = 0;
   getline (&server, &len, dbSet);
   server[strlen (server) - 1] = '\0';
@@ -136,6 +142,10 @@ mySQLConnect (FILE *dbSet, MYSQL *conn)
       fprintf (stderr, "%s\n", mysql_error (conn));
       return NULL;
     }
+  free (server);
+  free (user);
+  free (password);
+  free (database);
   return conn;
 }
 
@@ -176,7 +186,7 @@ getURLfromDB (MYSQL *conn, char* filename)
 }
 
 bool
-compRec (Record *first, Record *second)
+compRec (Record *first, Record * second)
 {
   long firstIndex = 0, secondIndex = 0;
   //Seeking to the end of the WARC header of the first record.
@@ -226,7 +236,7 @@ WriteMemoryCallback (void *contents, size_t size, size_t nmemb, void *userp)
   return realsize;
 }
 
-MemoryStruct*
+MemoryStruct *
 httpDLFile (char *url, int offset, int length)
 {
   CURL *curl_handle;
@@ -271,9 +281,12 @@ httpDLFile (char *url, int offset, int length)
       FILE* outf = fmemopen (chunk->memory, chunk->size, "r");
 
       z_stream z;
-      unsigned char *member = malloc (1024000);
+      int tempAlloc = 2 * chunk->size;
+      if (tempAlloc < 4 * 1024 * 1024)
+        tempAlloc = 4 * 1024 * 1024;
+      unsigned char *member = malloc (tempAlloc);
       gzmInflateInit (&z);
-      inflateMember (outf, &z, member, 1024000);
+      inflateMember (outf, &z, member, tempAlloc);
       inflateEnd (&z);
       fclose (outf);
 
@@ -290,6 +303,14 @@ httpDLFile (char *url, int offset, int length)
   curl_global_cleanup ();
   free (range);
   return chunk;
+}
+
+void
+usage ()
+{
+  fprintf (stderr, "Usage: warccollres [-i | --input <filename>] \
+[-o | --output <filename>] [-s | --db-settings <filename>] \
+[-p | --proc] [-q | --quite] [-v | --verbose]\n");
 }
 
 int
@@ -309,7 +330,7 @@ main (int argc, char** argv)
     {"verbose", no_argument, 0, 'v'},
     {0, 0, 0, 0}
   };
-  while ((opt = getopt_long (argc, argv, "i:o:s:pqv",
+  while ((opt = getopt_long (argc, argv, ":i:o:s:pqv",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -317,7 +338,7 @@ main (int argc, char** argv)
         case 'i':
           if (strlen (optarg) > 0)
             {
-              iFile = malloc (strlen (optarg));
+              iFile = malloc (strlen (optarg) + 1);
               strcpy (iFile, optarg);
             }
           else
@@ -328,7 +349,7 @@ main (int argc, char** argv)
         case 'o':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              oFile = malloc (strlen (optarg));
+              oFile = malloc (strlen (optarg) + 1);
               strcpy (oFile, optarg);
             }
           else
@@ -339,7 +360,7 @@ main (int argc, char** argv)
         case 's':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              dbFile = malloc (strlen (optarg));
+              dbFile = malloc (strlen (optarg) + 1);
               strcpy (dbFile, optarg);
             }
           else
@@ -357,14 +378,10 @@ main (int argc, char** argv)
           verbose = true;
           break;
         case 'h':
-          fprintf (stderr, "Usage: warccollres [-i | --input <filename>] \
-[-o | --output <filename>] [-s | --db-settings <filename>] \
-[-p | --proc] [-q | --quite] [-v | --verbose]\n");
+          usage ();
           return (EXIT_SUCCESS);
         default: /* '?' */
-          fprintf (stderr, "Usage: warccollres [-i | --input <filename>] \
-[-o | --output <filename>] [-s | --db-settings <filename>] \
-[-p | --proc] [-q | --quite] [-v | --verbose]\n");
+          usage ();
           exit (EXIT_FAILURE);
         }
     }
@@ -373,30 +390,25 @@ main (int argc, char** argv)
   /* Default values if any was not selected */
   if (iFile == NULL)
     {
-      const char *temp = "manifest";
-      iFile = malloc (9);
-      strcpy (iFile, temp);
-      if (!quite)
-        printf ("Using %s as the input file...\n", iFile);
+      printf ("Error: No input file was specified.\n");
+      usage ();
+      exit (EXIT_FAILURE);
     }
   if (oFile == NULL)
     {
-      oFile = malloc (strlen (iFile));
-      strcpy (oFile, iFile);
-      strcat (oFile, ".output");
-      if (!quite)
-        printf ("Using %s as the output filename...\n", oFile);
+      printf ("Error: No output file was specified.\n");
+      usage ();
+      exit (EXIT_FAILURE);
     }
   if (dbFile == NULL)
     {
-      const char *temp = "settings";
-      dbFile = malloc (9);
-      strcpy (dbFile, temp);
-      if (!quite)
-        printf ("Using %s as the database connecting settings file...\n", dbFile);
+      printf ("Error: No database settings file was specified.\n");
+      usage ();
+      exit (EXIT_FAILURE);
     }
 
   FILE *input = fopen (iFile, "r");
+  free (iFile);
 
   if (!input)
     {
@@ -422,7 +434,7 @@ main (int argc, char** argv)
       /* Start processing the input file */
       FILE* output = fopen (oFile, "w");
       free (oFile);
-      char *line, *currentHash = NULL;
+      char *line = NULL, *currentHash = NULL;
       size_t len = 0, lineNo = 0;
       size_t totalRecs = 0, totalDup = 0, totalColls = 0, totalSkip = 0;
       Record *currentRec = NULL, *recList = NULL;
@@ -430,14 +442,17 @@ main (int argc, char** argv)
         {
           lineNo++;
           line[strlen (line) - 1] = '\0';
-          line = realloc (line, strlen (line));
+          line = realloc (line, strlen (line) + 1);
           currentRec = createRecord (line);
           free (line);
           len = 0;
           line = NULL;
           /* Obtain the URL where the file is located from the database */
           char *url;
+          start = clock ();
           url = getURLfromDB (conn, currentRec->filename);
+          end = clock ();
+          databaseTime += ((double) (end - start)) / CLOCKS_PER_SEC;
           if (url == NULL)
             {
               if (!quite && verbose)
@@ -448,10 +463,22 @@ in line %ld.\n", lineNo);
               continue;
             }
           /* Get the date from the HTTP server */
+          start = clock ();
           currentRec->data = httpDLFile (url
                                          , currentRec->offset
                                          , currentRec->length);
+          end = clock ();
+          downloadTime += ((double) (end - start)) / CLOCKS_PER_SEC;
           free (url);
+          if (currentRec->data->size == 0)
+            {
+              if (!quite && verbose)
+                printf ("Could not download the member from the HTTP server\
+ for the processed record in line %ld.\n", lineNo);
+              destroyRecord (currentRec);
+              totalSkip++;
+              continue;
+            }
           /* Adding the first record to the has cluster */
           if (recList == NULL)
             {
@@ -471,6 +498,7 @@ in line %ld.\n", lineNo);
                   bool exist = false;
                   while (!exist)
                     {
+                      start = clock ();
                       if (compRec (collRec, currentRec))
                         {
                           if (!quite && verbose)
@@ -485,12 +513,13 @@ in line %ld.\n", lineNo);
                           currentRec->ext = sameRec->ext;
                           currentRec->copyNo = sameRec->copyNo + 1;
                           /* Removing the data of the duplicate record */
-                          if (currentRec->data->memory && currentRec->data->size > 0)
-                            free (currentRec->data->memory);
+                          free (currentRec->data->memory);
                           currentRec->data->size = 0;
                           totalDup++;
                           exist = true;
                         }
+                      end = clock ();
+                      compareTime += ((double) (end - start)) / CLOCKS_PER_SEC;
                       if (collRec->nextColl == NULL)
                         break;
                       collRec = collRec->nextColl;
@@ -498,7 +527,7 @@ in line %ld.\n", lineNo);
                   if (!exist)
                     {
                       if (!quite && verbose)
-                        printf ("Collision detected in line %ld.\n"
+                        printf ("Collision detected at line %ld.\n"
                                 , lineNo);
                       /* Adding the record to the list of collisions */
                       collRec->nextColl = currentRec;
@@ -511,7 +540,7 @@ in line %ld.\n", lineNo);
               else
                 {
                   if (!quite && verbose)
-                    printf ("Processing new hash cluster.\n");
+                    printf ("Processing new hash cluster at line %ld.\n", lineNo);
                   dumpHashCluster (output, recList, proc);
                   /* Destroying the records of the old hash cluster */
                   destroyRecord (recList);
@@ -524,16 +553,22 @@ in line %ld.\n", lineNo);
               totalRecs++;
             }
         }
+      if(line != NULL)
+        free(line);
       /* Cleaning up after the remaining hash cluster */
       if (!quite && verbose)
         printf ("Cleaning up...\n");
       dumpHashCluster (output, recList, proc);
+      currentHash = NULL;
       /* Destroying the records of the remaining hash cluster */
       destroyRecord (recList);
       recList = NULL;
       mysql_close (conn);
       fclose (input);
       fclose (output);
+      conn = NULL;
+      input = NULL;
+      output = NULL;
       if (!quite)
         {
           size_t total = totalRecs + totalSkip;
@@ -558,6 +593,11 @@ in line %ld.\n", lineNo);
                   , ((float) totalDup * 100 / totalRecs)
                   , totalColls
                   , ((float) totalColls * 100 / totalRecs));
+          printf ("Comparing time: %f seconds\nDownloading time: %f seconds\n\
+Query time: %f seconds\n"
+                  , compareTime
+                  , downloadTime
+                  , databaseTime);
         }
     }
   return (EXIT_SUCCESS);

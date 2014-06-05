@@ -75,7 +75,7 @@ const char const bin_to_hex[] = {
  * sets output with the hexadecimal digest
  */
 void
-hash (unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize)
+hash (unsigned char* buffer, int hash, unsigned char* computed_digest, int input_length)
 {
   int i;
   unsigned char result[DIGEST_LENGTH];
@@ -84,49 +84,49 @@ hash (unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize)
   switch (hash)
     {
     case 1: // calculate md5
-      MD5 (buffer, lSize, result);
+      MD5 (buffer, input_length, result);
       for (i = 0; i < MD5_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
           sprintf (temp, "%02x", result[i]);
-          computedDigest[j] = temp[0];
-          computedDigest[j + 1] = temp[1];
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
         }
-      computedDigest[j] = '\0';
+      computed_digest[j] = '\0';
       if (verbose)
         {
           printf ("Hash: MD5 \n");
         }
       break;
     case 2: // calculate sha1
-      SHA1 (buffer, lSize, result);
+      SHA1 (buffer, input_length, result);
       for (i = 0; i < SHA_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
           sprintf (temp, "%02x", result[i]);
-          computedDigest[j] = temp[0];
-          computedDigest[j + 1] = temp[1];
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
         }
-      computedDigest[j] = '\0';
+      computed_digest[j] = '\0';
       if (verbose)
         {
           printf ("Hash: SHA1 \n");
         }
       break;
     case 3: // calculate sha256
-      SHA256 (buffer, lSize, result);
+      SHA256 (buffer, input_length, result);
       for (i = 0; i < SHA256_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
           sprintf (temp, "%02x", result[i]);
-          computedDigest[j] = temp[0];
-          computedDigest[j + 1] = temp[1];
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
         }
       if (verbose)
         {
           printf ("Hash: SHA256 \n");
         }
-      computedDigest[j] = '\0';
+      computed_digest[j] = '\0';
       break;
     default:
       fprintf (stderr, "Unknown hash algorithm: %d!!\nHow did you get here?!", hash);
@@ -258,7 +258,7 @@ process_member (char* member, char* manifest, z_stream *z)
     {
       str[read_length - 1] = '\0';
     }
-  /* WARC header */
+  /* Process WARC header */
   while (strcmp_case_insensitive (str, "\r")
          && strcmp_case_insensitive (str, ""))
     {
@@ -480,27 +480,27 @@ process_member (char* member, char* manifest, z_stream *z)
 }
 
 int
-process_multimember (char* warcFileName, char* manifestFileName)
+process_multimember (char* warc_filename, char* manifest_filename)
 {
   char temp_FILENAME[FILE_NAME_LENGTH];
   long int START = 0, END = 0, C_SIZE = 0;
-  FILE* warcFile;
-  FILE* manifestFile;
+  FILE* warc_file;
+  FILE* manifest_file;
   char FILENAME[FILE_NAME_LENGTH];
   long file_size;
   z_stream z;
 
-  strcpy (temp_FILENAME, warcFileName);
+  strcpy (temp_FILENAME, warc_filename);
   //  if (verbose)
   {
-    printf ("\n===================\n%s\n%s\n", temp_FILENAME, manifestFileName);
+    printf ("\n===================\n%s\n%s\n", temp_FILENAME, manifest_filename);
   }
 
-  warcFile = fopen (temp_FILENAME, "r");
-  if (warcFile == NULL)
+  warc_file = fopen (temp_FILENAME, "r");
+  if (warc_file == NULL)
     {
       printf ("ERROR opening file: %s\n!!", temp_FILENAME);
-      fclose (warcFile);
+      fclose (warc_file);
       return 1;
     }
   /* Inflate Member to member */
@@ -512,17 +512,17 @@ process_multimember (char* warcFileName, char* manifestFileName)
       strcpy (FILENAME, pch);
       pch = strtok (NULL, "/\\");
     }
-  fseek (warcFile, 0, SEEK_END);
-  file_size = ftell (warcFile);
-  fseek (warcFile, 0, SEEK_SET);
+  fseek (warc_file, 0, SEEK_END);
+  file_size = ftell (warc_file);
+  fseek (warc_file, 0, SEEK_SET);
   gzmInflateInit (&z);
 
-  START = ftell (warcFile);
-  while (ftell (warcFile) < file_size)
+  START = ftell (warc_file);
+  while (ftell (warc_file) < file_size)
     {
       unsigned char* member = calloc (MEMBER_SIZE, sizeof (char));
 
-      START = ftell (warcFile);
+      START = ftell (warc_file);
       if (verbose)
         {
           printf ("***\n");
@@ -535,7 +535,7 @@ process_multimember (char* warcFileName, char* manifestFileName)
 
       inflateReset2 (&z, 31);
 
-      inflateMember (warcFile, &z, member, MEMBER_SIZE);
+      inflateMember (warc_file, &z, member, MEMBER_SIZE);
 
       /* TIME */
       time_t then_inflate;
@@ -549,7 +549,7 @@ process_multimember (char* warcFileName, char* manifestFileName)
           free (member);
           continue;
         }
-      END = ftell (warcFile);
+      END = ftell (warc_file);
       if (END == file_size)
         {
           END--;
@@ -581,9 +581,9 @@ process_multimember (char* warcFileName, char* manifestFileName)
         }
 
 
-      manifestFile = fopen (manifestFileName, "a");
-      fwrite (manifest2, 1, strlen (manifest2), manifestFile);
-      fclose (manifestFile);
+      manifest_file = fopen (manifest_filename, "a");
+      fwrite (manifest2, 1, strlen (manifest2), manifest_file);
+      fclose (manifest_file);
 
       if (verbose)
         {
@@ -592,7 +592,7 @@ process_multimember (char* warcFileName, char* manifestFileName)
     }
   (void) inflateEnd (&z);
 
-  fclose (warcFile);
+  fclose (warc_file);
 
   return 0;
 }
@@ -621,7 +621,9 @@ directoryFiles (char *input_dir, int* file_count)
 
           lstat (abs_file, &st);
           if (!strcmp (rel_files[i]->d_name, ".")
-              || !strcmp (rel_files[i]->d_name, "..") || !S_ISREG (st.st_mode))
+              || !strcmp (rel_files[i]->d_name, "..")
+              || !S_ISREG (st.st_mode)
+              || strcmp (&abs_file[strlen (abs_file) - 8], ".warc.gz"))
             {
               free (rel_files[i]);
               free (abs_file);
@@ -649,8 +651,8 @@ main (int argc, char **argv)
   output_set = 0;
   type_set = 0;
   int opt;
-  char warcFileName[FILE_NAME_LENGTH];
-  char manifestFileName[FILE_NAME_LENGTH];
+  char warc_filename[FILE_NAME_LENGTH];
+  char manifest_filename[FILE_NAME_LENGTH];
   static struct option long_options[] = {
     {"output", required_argument, 0, 'o'},
     {"input", required_argument, 0, 'i'},
@@ -670,7 +672,7 @@ main (int argc, char **argv)
         {
         case 'i':
           input_set = 1;
-          strcpy (warcFileName, optarg);
+          strcpy (warc_filename, optarg);
           break;
         case 't':
           type_set = 1;
@@ -700,7 +702,7 @@ main (int argc, char **argv)
           break;
         case 'o':
           output_set = 1;
-          strcpy (manifestFileName, optarg);
+          strcpy (manifest_filename, optarg);
           break;
         case 'v':
           verbose = 1;
@@ -728,17 +730,17 @@ main (int argc, char **argv)
     }
   if (!recursive)
     {
-      process_multimember (warcFileName, manifestFileName);
+      process_multimember (warc_filename, manifest_filename);
     }
   else
     {
       int n;
       char** abs_files;
-      abs_files = directoryFiles (warcFileName, &n);
+      abs_files = directoryFiles (warc_filename, &n);
       int i;
       for (i = 0; i < n; i++)
         {
-          process_multimember (abs_files[i], manifestFileName);
+          process_multimember (abs_files[i], manifest_filename);
           free (abs_files[i]);
         }
       free (abs_files);

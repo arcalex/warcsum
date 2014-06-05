@@ -8,7 +8,7 @@ char* WARC_TARGET_URI = "WARC-Target-URI";
 char* WARC_DATE = "WARC-Date";
 char* CONTENT_TYPE = "Content-Type";
 
-int forceRecalc, verbose, recursive, input_set, output_set, type_set;
+int force_recalculate_hash, verbose, recursive, input_set, output_set, type_set;
 short algo;
 char t[KEY_LENGTH];
 
@@ -72,7 +72,7 @@ const char const bin_to_hex[] = {
 
 /*
  * Hashes input char* using algorithm (1: md5, 2:sha1, 3:sha256) and 
- * sets output with the digest
+ * sets output with the hexadecimal digest
  */
 void
 hash (unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize)
@@ -80,7 +80,6 @@ hash (unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize)
   int i;
   unsigned char result[DIGEST_LENGTH];
   int j = 0;
-
 
   switch (hash)
     {
@@ -141,8 +140,10 @@ hash (unsigned char* buffer, int hash, unsigned char* computedDigest, int lSize)
 void
 base32_to_hex (char* in, char* out)
 {
-  char binary[160];
+  char binary[BINARY_SHA1_LENGTH];
   assert (strlen (in) == 32);
+
+  /* base32 to binary */
   int i;
   for (i = 0; i < strlen (in); i++)
     {
@@ -160,6 +161,8 @@ base32_to_hex (char* in, char* out)
         }
     }
   assert (strlen (binary) == 160);
+
+  /* binary to hex */
   int s = 0;
   for (i = 0; i < strlen (binary); i += 4, s++)
     {
@@ -210,14 +213,12 @@ process_member (char* member, char* manifest, z_stream *z)
   char FINAL_HASH[DIGEST_LENGTH];
   char DATE[DATE_LENGTH];
   char URI[URL_LENGTH];
-  int lSize;
   char precomputed_digest[DIGEST_LENGTH];
   char precomputed_hash[KEY_LENGTH];
-  char type[10];
-  char content_type[20];
+  char type[WARC_TYPE_LENGTH];
+  char content_type[CONTENT_TYPE_LENGTH];
   char* str;
   ssize_t read_length;
-  short content_length_set = 0;
   short payload_digest_set = 0;
   FILE* member_file;
   member_file = fmemopen (member, z->total_out, "r");
@@ -283,17 +284,9 @@ process_member (char* member, char* manifest, z_stream *z)
       free (pch);
 
       /* check key and fill header variables */
-      if (!strcmp_case_insensitive (key, CONTENT_LENGTH))
-        {
-          if (verbose)
-            {
-              printf ("WARC content length: %s \n", value);
 
-            }
-          lSize = atoi (value);
-          content_length_set = 1;
-        }
-      else if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST))
+      if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST)
+          && !force_recalculate_hash)
         {
           payload_digest_set = 1;
           char* pch;
@@ -403,7 +396,6 @@ process_member (char* member, char* manifest, z_stream *z)
     }
   else
     {
-
       free (str);
       ZERO = 0;
       read_length = getline (&str, &ZERO, member_file);
@@ -412,8 +404,9 @@ process_member (char* member, char* manifest, z_stream *z)
           str[read_length - 1] = '\0';
         }
 
-      /* HTTP header and discard it */
-      while (str != NULL && (strcmp_case_insensitive (str, "\r") && strcmp_case_insensitive (str, "")))
+      /* read HTTP header and discard it */
+      while (str != NULL && (strcmp_case_insensitive (str, "\r")
+                             && strcmp_case_insensitive (str, "")))
         {
           ZERO = 0;
           free (str);
@@ -429,9 +422,9 @@ process_member (char* member, char* manifest, z_stream *z)
       time_parse += difftime (then_parse, now_parse);
       /* END OF TIME */
       free (str);
-      int lSize = ftell (member_file);
+      int read_bytes = ftell (member_file);
 
-      if (z->total_out - lSize == 0)
+      if (z->total_out - read_bytes == 0)
         {
           fclose (member_file);
           /* TIME */
@@ -443,7 +436,7 @@ process_member (char* member, char* manifest, z_stream *z)
         }
 
       /* if digest is calculated and don't need to recalculate*/
-      if (payload_digest_set && algo == 2 && !forceRecalc)
+      if (payload_digest_set && algo == 2 && !force_recalculate_hash)
         {
           char fixedDigest[DIGEST_LENGTH];
           base32_to_hex (precomputed_digest, fixedDigest);
@@ -451,11 +444,10 @@ process_member (char* member, char* manifest, z_stream *z)
         }
       else
         {
-
-          char computedDigest[DIGEST_LENGTH];
+          char computed_digest[DIGEST_LENGTH];
           char *member_end = calloc (MEMBER_SIZE, sizeof (char));
-          memcpy (member_end, &member[lSize], z->total_out - lSize);
-          fread (member_end, 1, z->total_out - lSize, member_file);
+          memcpy (member_end, &member[read_bytes], z->total_out - read_bytes);
+          fread (member_end, 1, z->total_out - read_bytes, member_file);
 
           /* TIME */
           time_t now_hash;
@@ -463,23 +455,22 @@ process_member (char* member, char* manifest, z_stream *z)
           /* END OF TIME */
 
           hash ((unsigned char*) member_end, algo,
-                (unsigned char*) computedDigest, z->total_out - lSize);
+                (unsigned char*) computed_digest, z->total_out - read_bytes);
 
           /* TIME */
           time_t then_hash;
           time (&then_hash);
           time_hash += difftime (then_hash, now_hash);
           /* END OF TIME */
+
           if (verbose)
             {
-              printf ("Calculated digest:\t%s:%s \n", t, computedDigest);
+              printf ("Calculated digest:\t%s:%s \n", t, computed_digest);
             }
 
-          strcpy (FINAL_HASH, computedDigest);
+          strcpy (FINAL_HASH, computed_digest);
           free (member_end);
-
         }
-
     }
 
 
@@ -489,14 +480,14 @@ process_member (char* member, char* manifest, z_stream *z)
 }
 
 int
-manifest (char* warcFileName, char* manifestFileName)
+process_multimember (char* warcFileName, char* manifestFileName)
 {
   char temp_FILENAME[FILE_NAME_LENGTH];
   long int START = 0, END = 0, C_SIZE = 0;
   FILE* warcFile;
   FILE* manifestFile;
   char FILENAME[FILE_NAME_LENGTH];
-  long fsize;
+  long file_size;
   z_stream z;
 
   strcpy (temp_FILENAME, warcFileName);
@@ -522,16 +513,16 @@ manifest (char* warcFileName, char* manifestFileName)
       pch = strtok (NULL, "/\\");
     }
   fseek (warcFile, 0, SEEK_END);
-  fsize = ftell (warcFile);
+  file_size = ftell (warcFile);
   fseek (warcFile, 0, SEEK_SET);
+  gzmInflateInit (&z);
 
   START = ftell (warcFile);
-  while (ftell (warcFile) < fsize)
+  while (ftell (warcFile) < file_size)
     {
       unsigned char* member = calloc (MEMBER_SIZE, sizeof (char));
 
       START = ftell (warcFile);
-      gzmInflateInit (&z);
       if (verbose)
         {
           printf ("***\n");
@@ -542,6 +533,8 @@ manifest (char* warcFileName, char* manifestFileName)
       time (&now_inflate);
       /* END OF TIME */
 
+      inflateReset2 (&z, 31);
+
       inflateMember (warcFile, &z, member, MEMBER_SIZE);
 
       /* TIME */
@@ -550,7 +543,6 @@ manifest (char* warcFileName, char* manifestFileName)
       time_inflate += difftime (then_inflate, now_inflate);
       /* END OF TIME */
 
-      (void) inflateEnd (&z);
 
       if (z.total_out >= MEMBER_SIZE)
         {
@@ -558,7 +550,7 @@ manifest (char* warcFileName, char* manifestFileName)
           continue;
         }
       END = ftell (warcFile);
-      if (END == fsize)
+      if (END == file_size)
         {
           END--;
         }
@@ -598,6 +590,8 @@ manifest (char* warcFileName, char* manifestFileName)
           printf ("Manifest: %s \n", manifest2);
         }
     }
+  (void) inflateEnd (&z);
+
   fclose (warcFile);
 
   return 0;
@@ -648,7 +642,7 @@ directoryFiles (char *input_dir, int* file_count)
 int
 main (int argc, char **argv)
 {
-  forceRecalc = 0;
+  force_recalculate_hash = 0;
   verbose = 0;
   recursive = 0;
   input_set = 0;
@@ -702,7 +696,7 @@ main (int argc, char **argv)
             }
           break;
         case 'f':
-          forceRecalc = 1;
+          force_recalculate_hash = 1;
           break;
         case 'o':
           output_set = 1;
@@ -734,7 +728,7 @@ main (int argc, char **argv)
     }
   if (!recursive)
     {
-      manifest (warcFileName, manifestFileName);
+      process_multimember (warcFileName, manifestFileName);
     }
   else
     {
@@ -744,7 +738,7 @@ main (int argc, char **argv)
       int i;
       for (i = 0; i < n; i++)
         {
-          manifest (abs_files[i], manifestFileName);
+          process_multimember (abs_files[i], manifestFileName);
           free (abs_files[i]);
         }
       free (abs_files);

@@ -48,6 +48,7 @@
 #include <dirent.h>
 #include <sys/dir.h>
 #include <gzmulti.h>
+
 #include <time.h>
 //#define _SVID_SOURCE
 //#define _BSD_SOURCE
@@ -55,14 +56,17 @@
 
 #define MEMBER_SIZE 128*1024*1024
 #define WARC_HEADER_SIZE 10*1024
+#define WARC_TYPE_LENGTH 10
+#define CONTENT_TYPE_LENGTH 20
 #define HTTP_HEADER_SIZE 10*1024
 #define MANIFEST_LINE_SIZE 4*1024
+#define HEADER_LINE_SIZE 4*1024
 #define FILE_NAME_LENGTH 1024
 #define URL_LENGTH 4*1024
 #define DATE_LENGTH 32
 #define KEY_LENGTH 32
 #define DIGEST_LENGTH 64
-
+#define BINARY_SHA1_LENGTH 160
 /*
  * Hashes input char* using algo (1: md5, 2:sha1, 3:sha256) and 
  * sets output with the digest
@@ -84,7 +88,7 @@ int process_member(char* member, char* manifest_output, z_stream *z);
 /*
  * Processes a multi-member warc.gz and produces manifest foreach member
  */
-int manifest(char* warcFileName, char* manifestFileName);
+int process_multimember(char* warcFileName, char* manifestFileName);
 
 extern int versionsort();
 #endif	/* WARCSUM_H */

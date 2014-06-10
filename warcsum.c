@@ -124,7 +124,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest)
     {
     case 1:
       ret = MD5_Final (result, (MD5_CTX*) hash_ctx);
-//      for (j = 0; j < MD5_DIGEST_LENGTH; j++) printf ("%02x", c[j]);
+      //      for (j = 0; j < MD5_DIGEST_LENGTH; j++) printf ("%02x", c[j]);
 
       for (i = 0; i < MD5_DIGEST_LENGTH; i++, j += 2)
         {
@@ -501,11 +501,11 @@ process_member (char* member, char* manifest, z_stream *z)
           time (&now_hash);
           /* END OF TIME */
 
-          void* hash_ctx; 
+          void* hash_ctx;
           hash_init (&hash_ctx, algo);
           hash_update (payload, algo, z->total_out - read_bytes, hash_ctx);
           hash_final (hash_ctx, algo, computed_digest);
-          
+
           time_t then_hash;
           time (&then_hash);
           time_hash += difftime (then_hash, now_hash);
@@ -525,6 +525,247 @@ process_member (char* member, char* manifest, z_stream *z)
   sprintf (manifest, "%s %s %s", URI, DATE, FINAL_HASH);
   fclose (member_file);
   return 0;
+}
+
+int
+process_header (char* buffer, int length, char* URI, char* DATE, char* fixed_digest)
+{
+  char precomputed_digest[DIGEST_LENGTH];
+  char precomputed_hash[KEY_LENGTH];
+  char type[WARC_TYPE_LENGTH];
+  char content_type[CONTENT_TYPE_LENGTH];
+  char* str;
+  ssize_t read_length;
+  short payload_digest_set = 0;
+  FILE* member_file;
+
+  member_file = fmemopen (buffer, length, "r");
+  size_t ZERO = 0;
+  str = NULL;
+  /* TIME */
+  time_t now_parse;
+  time (&now_parse);
+  /* END OF TIME */
+
+  read_length = getline (&str, &ZERO, member_file);
+  if (str[read_length - 1] == '\n')
+    {
+      str[read_length - 1] = '\0';
+    }
+  if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER))
+    {
+      if (verbose)
+        {
+          printf ("Not a WARC file!!\n");
+        }
+      free (str);
+      fclose (member_file);
+
+      /* TIME */
+      time_t then_parse;
+      time (&then_parse);
+      time_parse += difftime (then_parse, now_parse);
+      /* END OF TIME */
+      return -1;
+    }
+  ZERO = 0;
+  free (str);
+
+  read_length = getline (&str, &ZERO, member_file);
+  if (str[read_length - 1] == '\n')
+    {
+      str[read_length - 1] = '\0';
+    }
+  /* Process WARC header */
+  while (strcmp_case_insensitive (str, "\r")
+         && strcmp_case_insensitive (str, ""))
+    {
+      char key[KEY_LENGTH], value[WARC_HEADER_SIZE];
+      char *pch;
+      pch = strtok (str, " \n");
+      int i;
+
+      /* parse header line to key: value */
+      for (i = 0; pch != NULL; i++)
+        {
+          if (i == 0)
+            {
+              memcpy (key, pch, strlen (pch) - 1);
+              key[strlen (pch) - 1] = '\0';
+            }
+          else if (i == 1)
+            {
+              strcpy (value, pch);
+            }
+          pch = strtok (NULL, " \n\r");
+        }
+      free (pch);
+
+      /* check key and fill header variables */
+
+      if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST)
+          && !force_recalculate_hash)
+        {
+          payload_digest_set = 1;
+          char* pch;
+          pch = strtok (value, ":\r\n ");
+          int i;
+          for (i = 0; pch != NULL; i++)
+            {
+              if (i == 0)
+                {
+                  memcpy (precomputed_hash, pch, strlen (pch));
+                  precomputed_hash[strlen (pch)] = '\0';
+                }
+              else if (strcmp_case_insensitive (pch, ""))
+                {
+                  memcpy (precomputed_digest, pch, strlen (pch));
+                  precomputed_digest[strlen (pch)] = '\0';
+                }
+              pch = strtok (NULL, ":");
+            }
+
+
+          if (verbose)
+            {
+              printf ("WARC payload digest: %s:%s \n", precomputed_hash,
+                      precomputed_digest);
+            }
+          free (pch);
+        }
+      else if (!strcmp_case_insensitive (key, WARC_TYPE))
+        {
+          strcpy (type, value);
+          if (verbose)
+            {
+              printf ("WARC type: %s \n", value);
+            }
+        }
+      else if (!strcmp_case_insensitive (key, WARC_DATE))
+        {
+          strcpy (DATE, value);
+          if (verbose)
+            {
+              printf ("WARC date: %s \n", value);
+            }
+        }
+      else if (!strcmp_case_insensitive (key, WARC_TARGET_URI))
+        {
+          strcpy (URI, value);
+          if (verbose)
+            {
+              printf ("WARC target uri: %s \n", value);
+            }
+        }
+      else if (!strcmp_case_insensitive (key, CONTENT_TYPE))
+        {
+          char* pch;
+          pch = strtok (value, ";\r\n ");
+          memcpy (content_type, pch, strlen (pch));
+          content_type[strlen (pch)] = '\0';
+
+          if (verbose)
+            {
+              printf ("Content-Type: %s \n", content_type);
+            }
+        }
+      ZERO = 0;
+      free (str);
+      read_length = getline (&str, &ZERO, member_file);
+      if (str[read_length - 1] == '\n')
+        {
+          str[read_length - 1] = '\0';
+        }
+    }
+
+  /* continue if warc-type: response
+   * and content-type: application/http */
+  if (strcmp_case_insensitive (type, "response"))
+    {
+      if (verbose)
+        {
+          printf ("WARC-Type is not \"response\" \n");
+        }
+      free (str);
+      fclose (member_file);
+
+      /* TIME */
+      time_t then_parse;
+      time (&then_parse);
+      time_parse += difftime (then_parse, now_parse);
+      /* END OF TIME */
+      return -1;
+    }
+  else if (strcmp_case_insensitive (content_type, "application/http"))
+    {
+      if (verbose)
+        {
+          printf ("Response is not HTTP. \n");
+        }
+      free (str);
+      fclose (member_file);
+
+      /* TIME */
+      time_t then_parse;
+      time (&then_parse);
+      time_parse += difftime (then_parse, now_parse);
+      /* END OF TIME */
+      return -1;
+    }
+  else
+    {
+      free (str);
+      ZERO = 0;
+      read_length = getline (&str, &ZERO, member_file);
+      if (str[read_length - 1] == '\n')
+        {
+          str[read_length - 1] = '\0';
+        }
+
+      /* read HTTP header and discard it */
+      while (str != NULL && (strcmp_case_insensitive (str, "\r")
+                             && strcmp_case_insensitive (str, "")))
+        {
+          ZERO = 0;
+          free (str);
+          read_length = getline (&str, &ZERO, member_file);
+          if (str[read_length - 1] == '\n')
+            {
+              str[read_length - 1] = '\0';
+            }
+        }
+      /* TIME */
+      time_t then_parse;
+      time (&then_parse);
+      time_parse += difftime (then_parse, now_parse);
+      /* END OF TIME */
+      free (str);
+      int read_bytes = ftell (member_file);
+
+      if (length - read_bytes == 0)
+        {
+          fclose (member_file);
+          /* TIME */
+          time_t then_parse;
+          time (&then_parse);
+          time_parse += difftime (then_parse, now_parse);
+          /* END OF TIME */
+          return -1;
+        }
+
+      /* if digest is calculated and don't need to recalculate*/
+      if (payload_digest_set && algo == 2 && !force_recalculate_hash)
+        {
+          base32_to_hex (precomputed_digest, fixed_digest);
+          if (verbose)
+            {
+              printf ("Stored digest:\t%s:%s \n", t, fixed_digest);
+            }
+        }
+    }
+  int read_bytes = ftell (member_file);
+  fclose (member_file);
+  return read_bytes;
 }
 
 int
@@ -567,6 +808,10 @@ process_multimember (char* warc_filename, char* manifest_filename)
   while (ftell (warc_file) < file_size)
     {
       unsigned char* member = calloc (MEMBER_SIZE, sizeof (char));
+      char FINAL_HASH[DIGEST_LENGTH];
+      char DATE[DATE_LENGTH];
+      char URI[URL_LENGTH];
+      char precomputed_digest[DIGEST_LENGTH];
 
       START = ftell (warc_file);
       if (verbose)
@@ -583,17 +828,33 @@ process_multimember (char* warc_filename, char* manifest_filename)
 
       inflateMember (warc_file, &z, member, MEMBER_SIZE);
 
-      /* TIME */
-      time_t then_inflate;
-      time (&then_inflate);
-      time_inflate += difftime (then_inflate, now_inflate);
-      /* END OF TIME */
-
-
-      if (z.total_out >= MEMBER_SIZE)
+      int status = process_header (member, z.total_out, URI, DATE, precomputed_digest);
+      if (status < 0)
         {
           free (member);
           continue;
+        }
+      else if (force_recalculate_hash)
+        {
+          if (z.total_out >= MEMBER_SIZE)
+            {
+              free (member);
+              continue;
+            }
+          z.total_out -= 4;
+          void* hash_ctx;
+          hash_init (&hash_ctx, algo);
+          hash_update (&member[status], algo, z.total_out - status, hash_ctx);
+          hash_final (hash_ctx, algo, FINAL_HASH);
+        }
+      else if (!force_recalculate_hash)
+        {
+          if (z.total_out >= MEMBER_SIZE)
+            {
+              free (member);
+              continue;
+            }
+          strcpy (FINAL_HASH, precomputed_digest);
         }
       END = ftell (warc_file);
       if (END == file_size)
@@ -601,26 +862,16 @@ process_multimember (char* warc_filename, char* manifest_filename)
           END--;
         }
       C_SIZE = END - START;
-      z.total_out -= 4;
-      char manifest[MANIFEST_LINE_SIZE];
-      if (verbose)
-        {
-          printf ("Processing offset: %d\n", START);
-        }
-      int status = process_member (member, manifest, &z);
-      free (member);
 
-      if (status)
-        {
-          continue;
-        }
-      if (verbose)
-        {
-          printf ("Manifest1: %s \n", manifest);
-        }
+      /* TIME */
+      time_t then_inflate;
+      time (&then_inflate);
+      time_inflate += difftime (then_inflate, now_inflate);
+      /* END OF TIME */
 
       char manifest2[MANIFEST_LINE_SIZE];
-      sprintf (manifest2, "%s %ld %ld %s\n", FILENAME, START, C_SIZE, manifest);
+      sprintf (manifest2, "%s %ld %ld %s %s %s\n", FILENAME, START, C_SIZE, URI,
+               DATE, FINAL_HASH);
       if (verbose)
         {
           printf ("Manifest written \n");

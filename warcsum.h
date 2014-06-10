@@ -105,6 +105,13 @@ int process_multimember(char* warcFileName, char* manifestFileName);
  */
 int process_directory(char* input_dir, char* manifest_filename);
 
+/*
+ * Processes warc member header
+ * @return read bytes count if succeded, else -1
+ */
+int process_header(char* buffer, int length, char* URI, char* DATE,
+        char* fixed_digest);
+
 extern int versionsort();
 #endif	/* WARCSUM_H */
 

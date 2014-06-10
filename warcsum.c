@@ -8,8 +8,8 @@ char* WARC_TARGET_URI = "WARC-Target-URI";
 char* WARC_DATE = "WARC-Date";
 char* CONTENT_TYPE = "Content-Type";
 
-int force_recalculate_hash, verbose, recursive, input_set, output_set, type_set;
-short algo;
+int force_recalculate_hash, verbose, recursive;
+int input_set, output_set, type_set, algo;
 char t[KEY_LENGTH];
 
 double time_hash = 0, time_inflate = 0, time_parse = 0;
@@ -70,21 +70,62 @@ const char const bin_to_hex[] = {
   'f'
 };
 
+int
+hash_init (void** hash_ctx, int hash)
+{
+  switch (hash)
+    {
+    case 1:
+      *hash_ctx = calloc (1, sizeof (MD5_CTX));
+      return MD5_Init ((MD5_CTX*) * hash_ctx);
+    case 2:
+      *hash_ctx = calloc (1, sizeof (SHA_CTX));
+      return SHA1_Init ((SHA_CTX*) * hash_ctx);
+    case 3:
+      *hash_ctx = calloc (1, sizeof (SHA256_CTX));
+      return SHA256_Init ((SHA256_CTX*) * hash_ctx);
+    default:
+      fprintf (stderr, "Unknown hash algorithm: %d!!\nHow did you get here?!\n\n", hash);
+      exit (EXIT_FAILURE);
+    }
+}
+
 /*
  * Hashes input char* using algorithm (1: md5, 2:sha1, 3:sha256) and 
  * sets output with the hexadecimal digest
  */
-void
-hash (unsigned char* buffer, int hash, unsigned char* computed_digest, int input_length)
+int
+hash_update (unsigned char* buffer, int hash,
+             int input_length, void* hash_ctx)
 {
-  int i;
-  unsigned char result[DIGEST_LENGTH];
-  int j = 0;
-
   switch (hash)
     {
     case 1: // calculate md5
-      MD5 (buffer, input_length, result);
+      return MD5_Update ((MD5_CTX*) hash_ctx, buffer, input_length);
+    case 2: // calculate sha1
+      return SHA1_Update ((SHA_CTX*) hash_ctx, buffer, input_length);
+    case 3: // calculate sha256
+      return SHA256_Update ((SHA256_CTX*) hash_ctx, buffer, input_length);
+    default:
+      fprintf (stderr, "Unknown hash algorithm: %d!!\nHow did you get here?!\n\n", hash);
+      exit (EXIT_FAILURE);
+    }
+}
+
+int
+hash_final (void* hash_ctx, int hash, char* computed_digest)
+{
+  int j = 0;
+  int i;
+  int ret;
+  unsigned char result[DIGEST_LENGTH];
+
+  switch (hash)
+    {
+    case 1:
+      ret = MD5_Final (result, (MD5_CTX*) hash_ctx);
+//      for (j = 0; j < MD5_DIGEST_LENGTH; j++) printf ("%02x", c[j]);
+
       for (i = 0; i < MD5_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
@@ -98,8 +139,8 @@ hash (unsigned char* buffer, int hash, unsigned char* computed_digest, int input
           printf ("Hash: MD5 \n");
         }
       break;
-    case 2: // calculate sha1
-      SHA1 (buffer, input_length, result);
+    case 2:
+      ret = SHA1_Final (result, (SHA_CTX*) hash_ctx);
       for (i = 0; i < SHA_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
@@ -113,8 +154,8 @@ hash (unsigned char* buffer, int hash, unsigned char* computed_digest, int input
           printf ("Hash: SHA1 \n");
         }
       break;
-    case 3: // calculate sha256
-      SHA256 (buffer, input_length, result);
+    case 3:
+      ret = SHA256_Final (result, (SHA256_CTX*) hash_ctx);
       for (i = 0; i < SHA256_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
@@ -129,9 +170,11 @@ hash (unsigned char* buffer, int hash, unsigned char* computed_digest, int input
       computed_digest[j] = '\0';
       break;
     default:
-      fprintf (stderr, "Unknown hash algorithm: %d!!\nHow did you get here?!", hash);
+      fprintf (stderr, "Unknown hash algorithm: %d!!\nHow did you get here?!\n\n", hash);
       exit (EXIT_FAILURE);
     }
+  free (hash_ctx);
+  return ret;
 }
 
 /*
@@ -336,7 +379,7 @@ process_member (char* member, char* manifest, z_stream *z)
           strcpy (URI, value);
           if (verbose)
             {
-              printf ("WARC target uri: %s, %s \n", value, URI);
+              printf ("WARC target uri: %s \n", value);
             }
         }
       else if (!strcmp_case_insensitive (key, CONTENT_TYPE))
@@ -438,26 +481,31 @@ process_member (char* member, char* manifest, z_stream *z)
       /* if digest is calculated and don't need to recalculate*/
       if (payload_digest_set && algo == 2 && !force_recalculate_hash)
         {
-          char fixedDigest[DIGEST_LENGTH];
-          base32_to_hex (precomputed_digest, fixedDigest);
-          strcpy (FINAL_HASH, fixedDigest);
+          char fixed_digest[DIGEST_LENGTH];
+          base32_to_hex (precomputed_digest, fixed_digest);
+          strcpy (FINAL_HASH, fixed_digest);
+          if (verbose)
+            {
+              printf ("Stored digest:\t%s:%s \n", t, fixed_digest);
+            }
         }
       else
         {
           char computed_digest[DIGEST_LENGTH];
-          char *member_end = calloc (MEMBER_SIZE, sizeof (char));
-          memcpy (member_end, &member[read_bytes], z->total_out - read_bytes);
-          fread (member_end, 1, z->total_out - read_bytes, member_file);
+          unsigned char *payload = calloc (MEMBER_SIZE, sizeof (char));
+          memcpy (payload, &member[read_bytes], z->total_out - read_bytes);
+          fread (payload, 1, z->total_out - read_bytes, member_file);
 
           /* TIME */
           time_t now_hash;
           time (&now_hash);
           /* END OF TIME */
 
-          hash ((unsigned char*) member_end, algo,
-                (unsigned char*) computed_digest, z->total_out - read_bytes);
-
-          /* TIME */
+          void* hash_ctx; 
+          hash_init (&hash_ctx, algo);
+          hash_update (payload, algo, z->total_out - read_bytes, hash_ctx);
+          hash_final (hash_ctx, algo, computed_digest);
+          
           time_t then_hash;
           time (&then_hash);
           time_hash += difftime (then_hash, now_hash);
@@ -469,7 +517,7 @@ process_member (char* member, char* manifest, z_stream *z)
             }
 
           strcpy (FINAL_HASH, computed_digest);
-          free (member_end);
+          free (payload);
         }
     }
 
@@ -491,10 +539,8 @@ process_multimember (char* warc_filename, char* manifest_filename)
   z_stream z;
 
   strcpy (temp_FILENAME, warc_filename);
-  //  if (verbose)
-  {
-    printf ("\n===================\n%s\n%s\n", temp_FILENAME, manifest_filename);
-  }
+
+  printf ("\n===================\n%s\n%s\n", temp_FILENAME, manifest_filename);
 
   warc_file = fopen (temp_FILENAME, "r");
   if (warc_file == NULL)
@@ -611,6 +657,7 @@ directoryFiles (char *input_dir, int* file_count)
     {
       free (abs_files);
       perror (input_dir);
+      j = -1;
     }
   else
     {
@@ -639,6 +686,26 @@ directoryFiles (char *input_dir, int* file_count)
     }
   *file_count = j;
   return abs_files;
+}
+
+int
+process_directory (char* input_dir, char* manifest_filename)
+{
+  int n;
+  char** abs_files;
+  abs_files = directoryFiles (input_dir, &n);
+  if (n == -1)
+    {
+      return 1;
+    }
+  int i;
+  for (i = 0; i < n; i++)
+    {
+      process_multimember (abs_files[i], manifest_filename);
+      free (abs_files[i]);
+    }
+  free (abs_files);
+  return 0;
 }
 
 int
@@ -730,26 +797,26 @@ main (int argc, char **argv)
     }
   if (!recursive)
     {
-      process_multimember (warc_filename, manifest_filename);
+      int ret = process_multimember (warc_filename, manifest_filename);
+      if (verbose)
+        {
+          printf ("Inflate member:\t%f\n", time_inflate);
+          printf ("Hash member:\t%f\n", time_hash);
+          printf ("Parse member:\t%f\n", time_parse);
+        }
+      return ret;
     }
   else
     {
-      int n;
-      char** abs_files;
-      abs_files = directoryFiles (warc_filename, &n);
-      int i;
-      for (i = 0; i < n; i++)
+      int ret = process_directory (warc_filename, manifest_filename);
+      if (verbose)
         {
-          process_multimember (abs_files[i], manifest_filename);
-          free (abs_files[i]);
+          printf ("Inflate member:\t%f\n", time_inflate);
+          printf ("Hash member:\t%f\n", time_hash);
+          printf ("Parse member:\t%f\n", time_parse);
         }
-      free (abs_files);
+      return ret;
     }
-  if (verbose)
-    {
-      printf ("Inflate member:\t%f\n", time_inflate);
-      printf ("Hash member:\t%f\n", time_hash);
-      printf ("Parse member:\t%f\n", time_parse);
-    }
+
   return 0;
 }

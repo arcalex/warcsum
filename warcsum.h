@@ -17,8 +17,8 @@
  * 
  * This program acts as the first step in arcalex project.
  * 
- * Given a multimember warc.gz file, this program calculates its 
- * manifest and appends it to given manifest file.
+ * Given a compressed multimember warc.gz (or a singlemember warc.gz) file,
+ * this program calculates its digest and appends it to given digests file.
  * 
  * Manifest contains following data:
  *      1. Warc file name
@@ -50,8 +50,6 @@
 #include <gzmulti.h>
 #include <math.h>
 #include <time.h>
-//#define _SVID_SOURCE
-//#define _BSD_SOURCE
 
 
 #define MEMBER_SIZE 128*1024*1024
@@ -97,13 +95,18 @@ struct mydata {
     char manifest[MANIFEST_LINE_SIZE];
 };
 
+/*
+ *  Initializes hash_ctx struct 
+ */
 int hash_init(void** hash_ctx, int hash);
 
+/*
+ * Finalize hash and produce digest in hex
+ */
 int hash_final(void* hash_ctx, int hash, char* computed_digest, struct cli_args args);
 
 /*
- * Hashes input char* using algo (1: md5, 2:sha1, 3:sha256) and 
- * sets output with the digest
+ * Update hash struct with input buffer
  */
 int hash_update(unsigned char* input, int algo, int lSize, void* hash_ctx);
 
@@ -118,8 +121,7 @@ void base32_to_hex(char* input, char* output);
 short strcmp_case_insensitive(char* a, const char* b);
 
 /*
- * Processes a single char* member and gets part of its manifest (URI, DATE,
- * FINAL_HASH) 
+ * Processes next member from warc.gz file pointer
  */
 int process_member(FILE* in, FILE* out, z_stream *z, struct mydata *m);
 
@@ -135,11 +137,24 @@ int process_file(char *in, FILE* out, z_stream* z, struct mydata* m);
 int process_directory(char* input_dir, char* manifest_filename);
 
 /*
- * Processes warc member header
- * @return read bytes count if succeded, else -1
+ * Parse and process command arguments and set cli_args struct
+ */
+int process_args(int argc, char **argv, struct cli_args* args);
+/*
+ * Process WARC header and extract: URI, Date
+ * @returns header length if valid WARC response header with http response was found,
+ * -1 otherwise.
  */
 int process_header(z_stream *z, void* vp);
 
+/*
+ * if provided chunk is at beginning of member, process header then hash payload
+ * else hash payload.
+ * Used as callback function by inflate member.
+ * @param1: z_stream* holds inflated data and metadata
+ * @param2: chuck to know if chunk is first, middle, last or first and last chunk
+ * @param3: user defined struct or variable passed to inflate member to be used in process_chunk for general purposes
+ */
 void process_chunk(z_stream* z, int chunk, void* vp);
 
 extern int versionsort();

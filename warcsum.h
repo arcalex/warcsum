@@ -48,7 +48,7 @@
 #include <dirent.h>
 #include <sys/dir.h>
 #include <gzmulti.h>
-
+#include <math.h>
 #include <time.h>
 //#define _SVID_SOURCE
 //#define _BSD_SOURCE
@@ -68,9 +68,38 @@
 #define DIGEST_LENGTH 64
 #define BINARY_SHA1_LENGTH 160
 
+struct cli_args {
+    int force_recalculate_digest;
+    int verbose;
+    int hash_code;
+    char hash_char[KEY_LENGTH];
+    char f_input[FILE_NAME_LENGTH];
+    char f_output[FILE_NAME_LENGTH];
+    int max_in;
+    int max_out;
+};
+
+struct mydata {
+    struct cli_args args;
+    int response;
+    void* hash_ctx;
+    int hash_algo;
+    int START;
+    int END;
+    int max_in;
+    int max_out;
+    char last_4[4];
+    char WARCFILE_NAME[FILE_NAME_LENGTH];
+    char URI[URL_LENGTH];
+    char DATE[DATE_LENGTH];
+    char fixed_digest[DIGEST_LENGTH];
+    char computed_digest[DIGEST_LENGTH];
+    char manifest[MANIFEST_LINE_SIZE];
+};
+
 int hash_init(void** hash_ctx, int hash);
 
-int hash_final(void* hash_ctx, int hash, char* computed_digest);
+int hash_final(void* hash_ctx, int hash, char* computed_digest, struct cli_args args);
 
 /*
  * Hashes input char* using algo (1: md5, 2:sha1, 3:sha256) and 
@@ -86,18 +115,18 @@ void base32_to_hex(char* input, char* output);
 /*
  * Compares 2 char*s and returns 0 if equal, 1 otherwise 
  */
-short strcmp_case_insensitive(char* a, char* b);
+short strcmp_case_insensitive(char* a, const char* b);
 
 /*
  * Processes a single char* member and gets part of its manifest (URI, DATE,
  * FINAL_HASH) 
  */
-int process_member(char* member, char* manifest_output, z_stream *z);
+int process_member(FILE* in, FILE* out, z_stream *z, struct mydata *m);
 
 /*
  * Processes a multi-member warc.gz and produces manifest foreach member
  */
-int process_multimember(char* warcFileName, char* manifestFileName);
+int process_file(char *in, FILE* out, z_stream* z, struct mydata* m);
 
 /*
  * Processes a directory of multi-member warc.gz 
@@ -109,8 +138,9 @@ int process_directory(char* input_dir, char* manifest_filename);
  * Processes warc member header
  * @return read bytes count if succeded, else -1
  */
-int process_header(char* buffer, int length, char* URI, char* DATE,
-        char* fixed_digest);
+int process_header(z_stream *z, void* vp);
+
+void process_chunk(z_stream* z, int chunk, void* vp);
 
 extern int versionsort();
 #endif	/* WARCSUM_H */

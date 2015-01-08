@@ -650,6 +650,11 @@ process_chunk (z_stream* z, int chunk, void* vp)
        * hash chunk[0..(n-4)] where n is next_out_length
        */
       read_bytes = process_header (z, vp); // process header
+      if (read_bytes != -1) // if header is valid (warc file, warc response and http response)
+        {
+          mm->response = 1;
+        }
+
       if (mm->response)
         {
           if (mm->args.force_recalculate_digest || mm->hash_algo != 2)
@@ -878,7 +883,7 @@ main (int argc, char **argv)
   struct mydata m;
   process_args (argc, argv, &m.args);
   FILE* f_out;
-  f_out = fopen (m.args.f_output, "w");
+  f_out = fopen (m.args.f_output, "a");
 
   z_stream z;
   /* z_stream initialization */

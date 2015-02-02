@@ -51,21 +51,27 @@
 #include <math.h>
 #include <time.h>
 
-
-#define MEMBER_SIZE 128*1024*1024
-#define WARC_HEADER_SIZE 10*1024
 #define WARC_TYPE_LENGTH 10
 #define CONTENT_TYPE_LENGTH 20
-#define HTTP_HEADER_SIZE 10*1024
 #define MANIFEST_LINE_SIZE 4*1024
 #define HEADER_LINE_SIZE 4*1024
 #define FILE_NAME_LENGTH 1024
-#define URL_LENGTH 4*1024
 #define DATE_LENGTH 32
 #define KEY_LENGTH 32
 #define DIGEST_LENGTH 64
 #define BINARY_SHA1_LENGTH 160
 
+const char* WARC_HEADER = "WARC/1.0\r";
+const char* CONTENT_LENGTH = "Content-Length";
+const char* WARC_TYPE = "WARC-Type";
+const char* WARC_PAYLOAD_DIGEST = "WARC-Payload-Digest";
+const char* WARC_TARGET_URI = "WARC-Target-URI";
+const char* WARC_DATE = "WARC-Date";
+const char* CONTENT_TYPE = "Content-Type";
+
+/*
+ * Structure that holds command line arguments
+ */
 struct cli_args {
     int force_recalculate_digest;
     int verbose;
@@ -73,22 +79,29 @@ struct cli_args {
     char hash_char[KEY_LENGTH];
     char f_input[FILE_NAME_LENGTH];
     char f_output[FILE_NAME_LENGTH];
-    int max_in;
-    int max_out;
+    int real_in;
+    int real_out;
+    int append;
 };
 
-struct mydata {
+/*
+ * Structure that holds variables to be passed accross functions
+ */
+struct warcsum_struct {
     struct cli_args args;
-    int response;
+    FILE* f_in;
     void* hash_ctx;
+    int response;
     int hash_algo;
     int START;
     int END;
-    int max_in;
-    int max_out;
+    int effective_in;
+    int effective_out;
+    int need_double;
     char last_4[4];
+    int size_last_4;
     char WARCFILE_NAME[FILE_NAME_LENGTH];
-    char URI[URL_LENGTH];
+    char *URI;
     char DATE[DATE_LENGTH];
     char fixed_digest[DIGEST_LENGTH];
     char computed_digest[DIGEST_LENGTH];
@@ -113,7 +126,7 @@ int hash_update(unsigned char* input, int algo, int lSize, void* hash_ctx);
 /*
  * Converts base32 numbers following RFC 4648 to hexadecimal numbers
  */
-void base32_to_hex(char* input, char* output);
+int base32_to_hex(char* input, char* output);
 
 /*
  * Compares 2 char*s and returns 0 if equal, 1 otherwise 
@@ -123,12 +136,12 @@ short strcmp_case_insensitive(char* a, const char* b);
 /*
  * Processes next member from warc.gz file pointer
  */
-int process_member(FILE* in, FILE* out, z_stream *z, struct mydata *m);
+int process_member(FILE* in, FILE* out, z_stream *z, struct warcsum_struct *m);
 
 /*
  * Processes a multi-member warc.gz and produces manifest foreach member
  */
-int process_file(char *in, FILE* out, z_stream* z, struct mydata* m);
+int process_file(char *in, FILE* out, z_stream* z, struct warcsum_struct* m);
 
 /*
  * Processes a directory of multi-member warc.gz 
@@ -140,12 +153,6 @@ int process_directory(char* input_dir, char* manifest_filename);
  * Parse and process command arguments and set cli_args struct
  */
 int process_args(int argc, char **argv, struct cli_args* args);
-/*
- * Process WARC header and extract: URI, Date
- * @returns header length if valid WARC response header with http response was found,
- * -1 otherwise.
- */
-int process_header(z_stream *z, void* vp);
 
 /*
  * if provided chunk is at beginning of member, process header then hash payload
@@ -157,7 +164,22 @@ int process_header(z_stream *z, void* vp);
  */
 void process_chunk(z_stream* z, int chunk, void* vp);
 
+
+/*
+ * Initialize z_stream and warcsum_struct
+ */
+void init (z_stream* z, struct warcsum_struct* m);
+
+/*
+ * Reset z_stream and warcsum_struct
+ */
+void reset(z_stream* z, struct warcsum_struct* m);
+
+/*
+ * Destroy z_stream 
+ */
+void end (z_stream* z);
+
 extern int versionsort();
 #endif	/* WARCSUM_H */
-
 

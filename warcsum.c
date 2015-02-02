@@ -1,14 +1,5 @@
 #include "warcsum.h"
 
-const char* WARC_HEADER = "WARC/1.0\r";
-const char* CONTENT_LENGTH = "Content-Length";
-const char* WARC_TYPE = "WARC-Type";
-const char* WARC_PAYLOAD_DIGEST = "WARC-Payload-Digest";
-const char* WARC_TARGET_URI = "WARC-Target-URI";
-const char* WARC_DATE = "WARC-Date";
-const char* CONTENT_TYPE = "Content-Type";
-
-
 double time_hash = 0, time_inflate = 0, time_parse = 0;
 
 /*
@@ -82,7 +73,7 @@ hash_init (void** hash_ctx, int hash)
   time_t now_hash;
   time (&now_hash);
   /* END OF TIME */
-
+  //  printf ("HASH INIT\n");
   switch (hash)
     {
     case 1:
@@ -147,7 +138,6 @@ hash_final (void* hash_ctx, int hash, char* computed_digest, struct cli_args arg
   time_t now_hash;
   time (&now_hash);
   /* END OF TIME */
-
   int j = 0;
   int i;
   int ret;
@@ -216,11 +206,16 @@ hash_final (void* hash_ctx, int hash, char* computed_digest, struct cli_args arg
 /*
  * Converts base32 numbers following RFC 4648 to hexadecimal numbers
  */
-void
+int
 base32_to_hex (char* in, char* out)
 {
   char binary[BINARY_SHA1_LENGTH];
-  assert (strlen (in) == 32);
+
+  /* If strlen(in) != 32 then digest was divided between 2 chunks */
+  if (strlen (in) != 32)
+    {
+      return -1;
+    }
 
   /* base32 to binary */
   int i;
@@ -259,6 +254,7 @@ base32_to_hex (char* in, char* out)
       out[s] = bin_to_hex[t];
     }
   out[40] = '\0';
+  return 0;
 }
 
 /*
@@ -286,14 +282,11 @@ strcmp_case_insensitive (char* a, const char* b)
     }
 }
 
-/*
- * Process WARC header and extract: URI, Date
- * @returns header length if valid WARC response header with http response was found,
- * -1 otherwise.
- */
 int
-process_header (z_stream *z, void* vp)
+process_warcheader (z_stream *z, void* vp)
 {
+  struct warcsum_struct *attrs = (struct warcsum_struct*) vp;
+  int return_value = 0;
   int read_bytes = -1;
   char precomputed_digest[DIGEST_LENGTH];
   char precomputed_hash[KEY_LENGTH];
@@ -301,24 +294,36 @@ process_header (z_stream *z, void* vp)
   char content_type[CONTENT_TYPE_LENGTH];
   char* str;
   ssize_t read_length;
+  size_t ZERO;
   short payload_digest_set = 0;
-  FILE* member_file;
 
-  /* Open chank as file. */
-  member_file = fmemopen (z->next_out, ((struct mydata*) vp)->max_out - z->avail_out, "r");
+  /* 
+   * fmemopen is used to handle strings in memory as files for easier reading 
+   * line by line
+   */
+  FILE* member_file;
+  member_file = fmemopen (z->next_out, attrs->effective_out - z->avail_out, "r");
+
+  /* Something went wrong creating member_file */
   if (member_file == NULL)
     {
       printf ("Could not process header\n");
-      return -1;
+      return_value = -1;
     }
-  size_t ZERO = 0;
-  str = NULL;
+
+  /* allocate URI dynamically to handle large URLs*/
+  char* value = calloc (attrs->effective_out, sizeof (char));
+  attrs->URI = calloc (attrs->effective_out, sizeof (char));
+
+
   /* TIME */
   time_t now_parse;
   time (&now_parse);
   /* END OF TIME */
 
-  /* Read line and replace remove \n from its end. */
+  /* Read line and remove \n from its end. */
+  ZERO = 0;
+  str = NULL;
   read_length = getline (&str, &ZERO, member_file);
   if (str[read_length - 1] == '\n')
     {
@@ -328,7 +333,7 @@ process_header (z_stream *z, void* vp)
   /* Check if it has WARC header */
   if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER))
     {
-      if (((struct mydata*) vp)->args.verbose)
+      if (attrs->args.verbose)
         {
           printf ("Not a WARC file!!\n");
         }
@@ -340,26 +345,29 @@ process_header (z_stream *z, void* vp)
       time (&then_parse);
       time_parse += difftime (then_parse, now_parse);
       /* END OF TIME */
-      return -1;
+      return_value = -1;
     }
+
+
   ZERO = 0;
   free (str);
-
   read_length = getline (&str, &ZERO, member_file);
   if (str[read_length - 1] == '\n')
     {
       str[read_length - 1] = '\0';
     }
-  /* Process WARC header */
-  while (strcmp_case_insensitive (str, "\r")
+
+  /* Process WARC header line by line*/
+  while (!feof (member_file) && strcmp_case_insensitive (str, "\r")
          && strcmp_case_insensitive (str, ""))
     {
-      char key[KEY_LENGTH], value[WARC_HEADER_SIZE];
+      char key[KEY_LENGTH];
+      value[0] = '\0';
       char *pch;
       pch = strtok (str, " \n");
       int i;
 
-      /* parse header line to key: value */
+      /* parse header line to (key: value) */
       for (i = 0; pch != NULL; i++)
         {
           if (i == 0)
@@ -375,10 +383,17 @@ process_header (z_stream *z, void* vp)
         }
       free (pch);
 
-      /* check key and fill header mydata variables */
-
-      if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST)
-          && !((struct mydata*) vp)->args.force_recalculate_digest)
+      /* check key and fill header warcsum_struct variables */
+      if (!strcmp_case_insensitive (key, WARC_TYPE))
+        {
+          strcpy (type, value);
+          if (attrs->args.verbose)
+            {
+              printf ("WARC type: %s \n", value);
+            }
+        }
+      else if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST)
+               && !attrs->args.force_recalculate_digest)
         {
           payload_digest_set = 1;
           char* pch;
@@ -400,33 +415,25 @@ process_header (z_stream *z, void* vp)
             }
 
 
-          if (((struct mydata*) vp)->args.verbose)
+          if (attrs->args.verbose)
             {
               printf ("WARC payload digest: %s:%s \n", precomputed_hash,
                       precomputed_digest);
             }
           free (pch);
         }
-      else if (!strcmp_case_insensitive (key, WARC_TYPE))
-        {
-          strcpy (type, value);
-          if (((struct mydata*) vp)->args.verbose)
-            {
-              printf ("WARC type: %s \n", value);
-            }
-        }
       else if (!strcmp_case_insensitive (key, WARC_DATE))
         {
-          strcpy (((struct mydata*) vp)->DATE, value);
-          if (((struct mydata*) vp)->args.verbose)
+          strcpy (attrs->DATE, value);
+          if (attrs->args.verbose)
             {
               printf ("WARC date: %s \n", value);
             }
         }
       else if (!strcmp_case_insensitive (key, WARC_TARGET_URI))
         {
-          strcpy (((struct mydata*) vp)->URI, value);
-          if (((struct mydata*) vp)->args.verbose)
+          strcpy (attrs->URI, value);
+          if (attrs->args.verbose)
             {
               printf ("WARC target uri: %s \n", value);
             }
@@ -435,12 +442,14 @@ process_header (z_stream *z, void* vp)
         {
           char* pch;
           pch = strtok (value, ";\r\n ");
-          memcpy (content_type, pch, strlen (pch));
-          content_type[strlen (pch)] = '\0';
-
-          if (((struct mydata*) vp)->args.verbose)
+          if (pch != NULL)
             {
-              printf ("Content-Type: %s \n", content_type);
+              memcpy (content_type, pch, strlen (pch));
+              content_type[strlen (pch)] = '\0';
+              if (attrs->args.verbose)
+                {
+                  printf ("Content-Type: %s \n", content_type);
+                }
             }
         }
       ZERO = 0;
@@ -451,47 +460,102 @@ process_header (z_stream *z, void* vp)
           str[read_length - 1] = '\0';
         }
     }
+  free (value);
+  free (str);
+  read_bytes = ftell (member_file);
+  fclose (member_file);
 
-  /* if warc-type is not "response" or content-type not "application/http"
-   * return -1
-   * else continue
-   */
-  if (strcmp_case_insensitive (type, "response"))
+  /* if end of warc header (empty line) was not encountered, then need_double */
+  if (read_bytes == attrs->effective_out - z->avail_out)
     {
-      if (((struct mydata*) vp)->args.verbose)
+      attrs->need_double = 1;
+      return_value = -1;
+    }
+
+  /* if warc member is not response */
+  if (strcmp_case_insensitive (type, "response")
+      && strcmp_case_insensitive (type, ""))
+    {
+      if (attrs->args.verbose)
         {
           printf ("WARC-Type is not \"response\" \n");
         }
-      free (str);
-      fclose (member_file);
 
       /* TIME */
       time_t then_parse;
       time (&then_parse);
       time_parse += difftime (then_parse, now_parse);
       /* END OF TIME */
-      return -1;
+      return_value = -1;
     }
-  else if (strcmp_case_insensitive (content_type, "application/http"))
+
+  /* if warc response is not application/http */
+  if (strcmp_case_insensitive (content_type, "application/http")
+      && strcmp_case_insensitive (type, ""))
     {
-      if (((struct mydata*) vp)->args.verbose)
+      if (attrs->args.verbose)
         {
-          printf ("Response is not HTTP. \n");
+          printf ("Content-type is not \"application/http\" \n");
         }
-      free (str);
-      fclose (member_file);
 
       /* TIME */
       time_t then_parse;
       time (&then_parse);
       time_parse += difftime (then_parse, now_parse);
       /* END OF TIME */
-      return -1;
+      return_value = -1;
+    }
+
+
+  /* 
+   * if digest is calculated and don't need to recalculate
+   * then fix it to hexadecimal
+   */
+  if (return_value != -1 && payload_digest_set && attrs->args.hash_code == 2
+      && !attrs->args.force_recalculate_digest)
+    {
+      int converted = base32_to_hex (precomputed_digest, attrs->fixed_digest);
+      if (converted == -1)
+        {
+          return_value = -1;
+        }
+      else
+        {
+          if (attrs->args.verbose)
+            {
+              printf ("Stored digest:\t%s:%s \n",
+                      attrs->args.hash_char, attrs->fixed_digest);
+            }
+        }
+    }
+
+  return return_value == -1 ? -1 : read_bytes;
+}
+
+/*
+ * Read the http header and discard it totally
+ */
+int
+process_httpheader (z_stream *z, void *vp, int header_offset)
+{
+  struct warcsum_struct *ws = (struct warcsum_struct*) vp;
+  int read_bytes = -1;
+  int return_value = 0;
+  char* str;
+  ssize_t read_length;
+  size_t ZERO;
+  FILE* member_file;
+
+  ZERO = 0;
+  member_file = fmemopen (&z->next_out[header_offset],
+                          ws->effective_out - z->avail_out - header_offset, "r");
+  if (member_file == NULL)
+    {
+      printf ("Could not process HTTP header\n");
+      return_value = -1;
     }
   else
     {
-      free (str);
-      ZERO = 0;
       read_length = getline (&str, &ZERO, member_file);
       if (str[read_length - 1] == '\n')
         {
@@ -499,41 +563,54 @@ process_header (z_stream *z, void* vp)
         }
 
       /* read HTTP header till first empty line and discard it */
-      while (str != NULL && (strcmp_case_insensitive (str, "\r")
-                             && strcmp_case_insensitive (str, "")))
+      while ((str != NULL && (strcmp_case_insensitive (str, "\r")
+                              && strcmp_case_insensitive (str, ""))))
         {
           ZERO = 0;
           free (str);
           read_length = getline (&str, &ZERO, member_file);
-
-          if (str[read_length - 1] == '\n')
+          if (read_length && str[read_length - 1] == '\n')
             {
               str[read_length - 1] = '\0';
             }
         }
-      /* TIME */
-      time_t then_parse;
-      time (&then_parse);
-      time_parse += difftime (then_parse, now_parse);
-      /* END OF TIME */
       free (str);
       read_bytes = ftell (member_file);
       fclose (member_file);
 
-      /* if digest is calculated and don't need to recalculate
-       * then fix it to hexadecimal
-       */
-      if (payload_digest_set && ((struct mydata*) vp)->args.hash_code == 2 && !((struct mydata*) vp)->args.force_recalculate_digest)
-        {
-          base32_to_hex (precomputed_digest, ((struct mydata*) vp)->fixed_digest);
-          if (((struct mydata*) vp)->args.verbose)
-            {
-              printf ("Stored digest:\t%s:%s \n", ((struct mydata*) vp)->args.hash_char, ((struct mydata*) vp)->fixed_digest);
-            }
-        }
     }
 
-  return read_bytes;
+  return return_value == -1 ? -1 : read_bytes;
+}
+
+/*
+ * Process WARC header and extract: URI, Date
+ */
+int
+process_header (z_stream *z, void* vp)
+{
+  struct warcsum_struct *mm = (struct warcsum_struct*) vp;
+  int warc_header_length = 0;
+  int http_header_length = 0;
+  warc_header_length = process_warcheader (z, vp);
+  if (warc_header_length == -1)
+    {
+      return -1;
+    }
+  if (mm->effective_out - z->avail_out > warc_header_length)
+    {
+      http_header_length = process_httpheader (z, vp, warc_header_length);
+    }
+
+  if (http_header_length + warc_header_length == mm->effective_out - z->avail_out)
+    {
+      mm->need_double = 1;
+      return -1;
+    }
+  else
+    {
+      return http_header_length + warc_header_length;
+    }
 }
 
 /*
@@ -548,9 +625,10 @@ void
 process_chunk (z_stream* z, int chunk, void* vp)
 {
   // mm points to vp with casting for more readable and debuggable code.
-  struct mydata* mm = ((struct mydata*) vp);
+  struct warcsum_struct* ws = ((struct warcsum_struct*) vp);
   // next_out_length holds inflated buffer size
-  int next_out_length = mm->max_out - z->avail_out;
+  int next_out_length = ws->effective_out - z->avail_out;
+
   /* TIME */
   time_t now_parse;
   time (&now_parse);
@@ -559,60 +637,96 @@ process_chunk (z_stream* z, int chunk, void* vp)
   int read_bytes = 0;
 
   /*
-   * Last 4 bytes of a chunk are not hashed with the rest of the chunk to make sure they are not part of "\r\n\r\n" which is the separator between members in multi member WARC files.
+   * Last 4 bytes of a chunk are not hashed with the rest of the chunk to make 
+   * sure they are not part of "\r\n\r\n" which is the separator between members 
+   * in multi member WARC files.
    */
   switch (chunk)
     {
     case CHUNK_FIRST: // first chunk of the member
+
       // first process header
       read_bytes = process_header (z, vp);
-      if (read_bytes != -1) // if header is valid (warc file, warc response and http response)
+
+      // if header is valid (warc file, warc response and http response)
+      if (read_bytes != -1)
         {
-          mm->response = 1;
+          ws->response = 1;
         }
 
-      if (mm->response) // if header is valid
+      // if header is valid
+      if (ws->response)
         {
-          if (mm->args.force_recalculate_digest || mm->hash_algo != 2) // if recalculate digest
+          // if recalculate digest
+          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
             {
-              hash_update (&z->next_out[read_bytes], mm->hash_algo,
-                           next_out_length - read_bytes - 4, mm->hash_ctx);
-              memcpy (mm->last_4, &z->next_out[next_out_length - 4], 4);
+              /* 
+               * if warc payload length is greater than 4 chars, then save the 
+               * last 4 chars in last_4 for handling \r\n\r\n 
+               * else save all payload in last_4 and update size_last_4 with the
+               * number of chars saved
+               */
+              if ((next_out_length - read_bytes) >= 4)
+                {
+                  hash_update (&z->next_out[read_bytes], ws->hash_algo,
+                               next_out_length - read_bytes - 4, ws->hash_ctx);
+                  memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
+                  ws->size_last_4 = 4;
+                }
+              else
+                {
+                  memcpy (ws->last_4, &z->next_out[read_bytes], next_out_length - read_bytes);
+                  ws->size_last_4 = next_out_length - read_bytes;
+                }
             }
+
         }
 
       break;
     case CHUNK_MIDDLE: // neither first nor last chunk of member
-      if (mm->response) // if header is processed
+      if (ws->response) // if header is processed and member is warc response
         {
           /* MIDDLE CHUNK:
-           * check if  chunk length is >= 4 => hash all member except last 4 bytes
-           * o.w. hash first n bytes of last 4 of previous chunk, then append current chunk to last (4 - n) bytes to form last_4 bytes and pass them on to next chunk.
-           * where n in length of current chunk (next_out_length)
+           * check if  chunk length is >= 4 => hash last_4 
+           *      + all member except last 4 bytes
+           * o.w. follow comments in else section
            */
           if (next_out_length >= 4)
             {
-              if (mm->args.force_recalculate_digest || mm->hash_algo != 2)
+              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
                 {
-                  hash_update (mm->last_4, mm->hash_algo,
-                               4, mm->hash_ctx); // hash last 4 bytes from previous chunk
-                  hash_update (z->next_out, mm->hash_algo,
-                               next_out_length - 4, mm->hash_ctx); // hash current chunk except for last 4 bytes
-                  memcpy (mm->last_4, &z->next_out[next_out_length - 4], 4);
+                  hash_update (ws->last_4, ws->hash_algo,
+                               ws->size_last_4, ws->hash_ctx); // hash last 4 bytes from previous chunk
+                  hash_update (z->next_out, ws->hash_algo,
+                               next_out_length - 4, ws->hash_ctx); // hash current chunk except for last 4 bytes
+                  memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
+                  ws->size_last_4 = 4;
                 }
             }
           else
             {
-              if (mm->args.force_recalculate_digest || mm->hash_algo != 2)
+              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
                 {
-                  hash_update (mm->last_4, mm->hash_algo,
-                               next_out_length, mm->hash_ctx); // hash last_4[0..n]
-                  memcpy (mm->last_4,
-                          &mm->last_4[next_out_length],
-                          4 - next_out_length); // push last_4[n..4] back to last_4[0..(4-n)]
-                  memcpy (&mm->last_4[4 - next_out_length],
+                  // length of chars to be hashed from last_4
+                  int to_be_hashed = next_out_length + ws->size_last_4 - 4;
+
+                  // hash last_4[0..to_be_hashed]
+                  hash_update (ws->last_4, ws->hash_algo,
+                               to_be_hashed, ws->hash_ctx);
+
+                  // last_4 <- (4 - next_out_length) chars of last_4 + next_out
+
+                  // push last_4[n..4] back to last_4[0..(4-n)] 
+                  // memmove used instead of memcpy due to overlapping source and destination
+                  memmove (ws->last_4,
+                           &ws->last_4[ws->size_last_4 - (4 - next_out_length)],
+                           4 - next_out_length);
+
+                  // append current chunk to last4 (last_4[0..(4-n)] + current chunk)
+                  memcpy (&ws->last_4[4 - next_out_length],
                           z->next_out,
-                          next_out_length); // append current chunk to last4 (last_4[0..(4-n)] + current chunk)
+                          next_out_length);
+                  ws->size_last_4 = 4;
                 }
             }
         }
@@ -620,47 +734,56 @@ process_chunk (z_stream* z, int chunk, void* vp)
     case CHUNK_LAST:
       /*
        * LAST CHUNK:
-       * check if next_out_length >= 4, hash last_4 of previous chunk, then hash current chunk except for last 4 bytes of it "\r\n\r\n"
+       * check if next_out_length >= 4, hash last_4 of previous chunk, 
+       * then hash current chunk except for last 4 bytes of it "\r\n\r\n"
+       * 
        * o.w. hash last_4[0..n] of last chunk, where n in next_out_length
        */
-      if (mm->response) // if header is processed
+      if (ws->response) // if header is processed
         {
-
-          if (next_out_length >= 4)
+          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
             {
-              if (mm->args.force_recalculate_digest || mm->hash_algo != 2)
+
+              if (next_out_length >= 4)
                 {
-                  hash_update (mm->last_4, mm->hash_algo,
-                               4, mm->hash_ctx); // hash last_4
-                  hash_update (z->next_out, mm->hash_algo,
-                               next_out_length - 4, mm->hash_ctx); // hash current chunk [0..(n-4)] where n is next_out_length
+                  // hash last_4
+                  hash_update (ws->last_4, ws->hash_algo,
+                               ws->size_last_4, ws->hash_ctx);
+                  // hash current chunk [0..(n-4)] where n is next_out_length
+                  hash_update (z->next_out, ws->hash_algo,
+                               next_out_length - 4, ws->hash_ctx);
+
+                }
+              else
+                {
+                  // hash last_4[0..n] from previous chunk, 
+                  // where n is next_out_length + size_last_4 - 4
+                  hash_update (ws->last_4, ws->hash_algo,
+                               ws->size_last_4 + next_out_length - 4, ws->hash_ctx);
                 }
             }
-          else
-            {
-              hash_update (mm->last_4, mm->hash_algo,
-                           next_out_length, mm->hash_ctx); // hash last_4[0..n] from previous chunk, where n is next_out_length
-            }
         }
-
       break;
     case CHUNK_FIRST_LAST:
-      /* Member fits 1 chunk
+      /* Member fits in 1 chunk
        * process header
        * hash chunk[0..(n-4)] where n is next_out_length
        */
       read_bytes = process_header (z, vp); // process header
-      if (read_bytes != -1) // if header is valid (warc file, warc response and http response)
+
+      // if header is valid (warc file, warc response and http response)
+      if (read_bytes != -1)
         {
-          mm->response = 1;
+          ws->response = 1;
         }
 
-      if (mm->response)
+      if (ws->response)
         {
-          if (mm->args.force_recalculate_digest || mm->hash_algo != 2)
+          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
             {
-              hash_update (&z->next_out[read_bytes], mm->hash_algo,
-                           next_out_length - read_bytes, mm->hash_ctx); // hash chunk[0..(n-4)], where n is next_out_length
+              // hash chunk[0..(n-4)], where n is next_out_length
+              hash_update (&z->next_out[read_bytes], ws->hash_algo,
+                           next_out_length - read_bytes - 4, ws->hash_ctx);
             }
         }
       break;
@@ -677,66 +800,91 @@ process_chunk (z_stream* z, int chunk, void* vp)
  * Processes next member from warc.gz file pointer
  */
 int
-process_member (FILE* f_in, FILE* f_out, z_stream *z, struct mydata *m)
+process_member (FILE* f_in, FILE* f_out, z_stream *z, struct warcsum_struct* ws)
 {
+  if (ws->args.verbose)
+    {
+      printf ("\n\n");
+      printf ("OFFSET: %d\n", ftell (f_in));
+    }
+
   /* Reset mydata */
-  m->response = 0;
-  m->last_4[0] = '\0';
-  m->START = ftell (f_in);
+  ws->response = 0;
+  ws->last_4[0] = '\0';
+  ws->START = ftell (f_in);
 
   /* Reset z_stream */
+  // for notes on '31' refer to libgzmulti code
   inflateReset2 (z, 31);
 
-  /*Initialize hash_ctx struct */
-  hash_init (&m->hash_ctx, m->args.hash_code);
+  /* Initialize hash_ctx struct */
+  hash_init (&ws->hash_ctx, ws->args.hash_code);
 
   /* call inflateMember from libgzMulti */
-  int err = inflateMember (z, f_in, m->max_in, m->max_out, process_chunk, m);
+  int err = inflateMember (z, f_in, ws->effective_in, ws->effective_out, process_chunk, ws);
 
   /* Finalize hash_ctx and produce calculated digest */
-  hash_final (m->hash_ctx, m->args.hash_code, m->computed_digest, m->args);
-  m->END = ftell (f_in);
+  hash_final (ws->hash_ctx, ws->args.hash_code, ws->computed_digest, ws->args);
 
-  if (m->response) // if processed member was response
+  /* store position of end of member in compressed file
+   * requested by warccolres to download member
+   */
+  ws->END = ftell (f_in);
+
+  if (ws->response) // if processed member was response
     {
       char final_digest[DIGEST_LENGTH];
-      if (m->args.force_recalculate_digest || m->hash_algo != 2) // if calculated hash was chosen
+      if (ws->args.force_recalculate_digest || ws->hash_algo != 2) // if calculated hash was chosen
         {
-          strcpy (final_digest, m->computed_digest);
+          strcpy (final_digest, ws->computed_digest);
         }
       else // if stored hash was chosen
         {
-          strcpy (final_digest, m->fixed_digest);
+          strcpy (final_digest, ws->fixed_digest);
         }
-      sprintf (m->manifest, "%s %ld %ld %s %s %s\n", m->WARCFILE_NAME, m->START, m->END - m->START, m->URI, m->DATE, final_digest);
 
-      fwrite (m->manifest, 1, strlen (m->manifest), f_out); // write digest to digests file
+      sprintf (ws->manifest, "%s %ld %ld %s %s %s\n", ws->WARCFILE_NAME,
+               ws->START, ws->END - ws->START, ws->URI, ws->DATE, final_digest);
+
+      if (ws->args.verbose)
+        {
+          printf ("%s\n", ws->manifest);
+        }
+
+      // write digest to digests file
+      fwrite (ws->manifest, 1, strlen (ws->manifest), f_out);
+
+      free (ws->URI);
       return 0;
     }
-  return 1;
+  else
+    {
+      free (ws->URI);
+      return 1;
+    }
 }
 
 /* Process warc.gz file */
 int
-process_file (char *in, FILE* f_out, z_stream* z, struct mydata* m)
+process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
 {
-  printf ("*** %s\n", in);
-
   /* Open file */
   int file_size;
   FILE* f_in;
   f_in = fopen (in, "r");
+  ws->f_in = f_in;
   if (f_in == NULL)
     {
       fprintf (stderr, "Unable to open file: %s\n", in);
       return 1;
     }
+
   /* Calculate file size */
   fseek (f_in, 0, SEEK_END);
   file_size = ftell (f_in);
   fseek (f_in, 0, SEEK_SET);
 
-  /* Get warc file name without full path to be used in digest file*/
+  /* Get warc file name without full path to be used in digest file */
   char temp_FILENAME[FILE_NAME_LENGTH];
   strcpy (temp_FILENAME, in);
   char* pch;
@@ -744,41 +892,88 @@ process_file (char *in, FILE* f_out, z_stream* z, struct mydata* m)
   int i;
   for (i = 0; pch != NULL; i++)
     {
-      strcpy (m->WARCFILE_NAME, pch);
+      strcpy (ws->WARCFILE_NAME, pch);
       pch = strtok (NULL, "/\\");
     }
+
+  /* initialize effective_in/out with real_in/out for first member
+   */
+  ws->effective_in = ws->args.real_in;
+  ws->effective_out = ws->args.real_out;
 
   // process member by member from the file, till end of file
   do
     {
-      process_member (f_in, f_out, z, m);
+      /* reprocessing the same member with larger chunk size 
+       * for fitting the header in the chunk 
+       */
+      if (ws->need_double)
+        {
+          if (ws->args.verbose)
+            {
+              printf ("Chunk size not sufficient\n"
+                      "Doubling chunk size\n"
+                      "%d %d\n",
+                      ws->START, ws->effective_out);
+            }
+          // double effective_in/out
+          ws->effective_out *= 2;
+          ws->effective_in *= 2;
+          // fseek back to start of member
+          fseek (ws->f_in, ws->START, SEEK_SET);
+          reset (z, ws);
+        }
+      else
+        {
+          /* reset effective_in/out in case they were changed due to not fitting header
+           * in last member
+           */
+          ws->effective_in = ws->args.real_in;
+          ws->effective_out = ws->args.real_out;
+          reset (z, ws);
+        }
+      ws->need_double = 0;
+      process_member (f_in, f_out, z, ws);
+
     }
-  while (ftell (f_in) < file_size);
+  while (ftell (f_in) < file_size || ws->need_double);
 
   fclose (f_in);
   return 0;
 }
 
-/* Initialize z_stream and mydata */
+/* Initialize z_stream and warcsum_struct */
 void
-init (z_stream* z, struct mydata* m)
+init (z_stream* z, struct warcsum_struct* ws)
 {
   /* z_stream initialization */
   gzmInflateInit (z);
-  z->next_in = calloc ((m->args.max_in + 1), sizeof (Bytef)); //extra byte for the null terminator
-  z->next_out = calloc ((m->args.max_out + 1), sizeof (Bytef));
+  z->next_in = calloc ((ws->args.real_in + 1), sizeof (Bytef)); //extra byte for the null terminator
+  z->next_out = calloc ((ws->args.real_out + 1), sizeof (Bytef));
 
-  /* mydata initialization.*/
-  m->max_in = m->args.max_in;
-  m->max_out = m->args.max_out;
-  m->hash_algo = m->args.hash_code;
+  /* warcsum_struct initialization.*/
+  ws->effective_in = ws->args.real_in;
+  ws->effective_out = ws->args.real_out;
+  ws->hash_algo = ws->args.hash_code;
+  ws->need_double = 0;
+}
+
+/* reset z_stream and warcsum_struct */
+void
+reset (z_stream* z, struct warcsum_struct* ws)
+{
+  free (z->next_in);
+  free (z->next_out);
+
+  z->next_in = calloc (ws->effective_in + 1, sizeof (Bytef));
+  z->next_out = calloc (ws->effective_out + 1, sizeof (Bytef));
 }
 
 /* finalize z_stream */
 void
 end (z_stream* z)
 {
-  /* z_stream initialization */
+  /* z_stream terminating */
   inflateEnd (z);
   free (z->next_in);
   free (z->next_out);
@@ -794,11 +989,12 @@ process_args (int argc, char **argv, struct cli_args* args)
   args->force_recalculate_digest = 0;
   args->verbose = 0;
   args->hash_code = 2;
+  args->append = 0;
   strcpy (args->hash_char, "SHA1");
   strcpy (args->f_input, "");
   strcpy (args->f_output, "");
-  args->max_in = 8 * 1024;
-  args->max_out = 16 * 1024;
+  args->real_in = 8 * 1024;
+  args->real_out = 16 * 1024;
 
   int opt;
   static struct option long_options[] = {
@@ -808,12 +1004,15 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"force-recalc", no_argument, 0, 'f'},
+    {"input-buffer", required_argument, 0, 'n'},
+    {"output-buffer", required_argument, 0, 'u'},
+    {"append", no_argument, 0, 'a'},
     {0, 0, 0, 0}
   };
 
   int option_index = 0;
 
-  while ((opt = getopt_long (argc, argv, "a:b:i:o:h:fv",
+  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fva",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -852,26 +1051,37 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'v':
           args->verbose = 1;
           break;
-        case 'a':
-          args->max_in = atoi (optarg);
+        case 'n':
+          args->real_in = atoi (optarg);
           break;
-        case 'b':
-          args->max_out = atoi (optarg);
+        case 'u':
+          args->real_out = atoi (optarg);
+          break;
+        case 'a':
+          args->append = 1;
           break;
         default:
           fprintf (stderr, "Usage: warcsum [-i input file | required] "
                    "[-o output file | required] "
                    "[-h hashing algorithm] "
-                   "[-f force digest calculation] \n");
+                   "[-f force digest calculation] "
+                   "[-v verbose] "
+                   "[-n input buffer size] "
+                   "[-u output buffer size] "
+                   "[-a append] \n");
           exit (EXIT_FAILURE);
         }
     }
   if (!strcmp (args->f_input, "") || !strcmp (args->f_output, ""))
     {
       fprintf (stderr, "Usage: warcsum [-i input file | required] "
-               "[-h hashing algorithm | required] "
                "[-o output file | required] "
-               "[-f force digest calculation] \n");
+               "[-h hashing algorithm] "
+               "[-f force digest calculation] "
+               "[-v verbose] "
+               "[-n input buffer size] "
+               "[-u output buffer size] "
+               "[-a append] \n");
       exit (EXIT_FAILURE);
     }
   return 0;
@@ -880,28 +1090,26 @@ process_args (int argc, char **argv, struct cli_args* args)
 int
 main (int argc, char **argv)
 {
-  struct mydata m;
-  process_args (argc, argv, &m.args);
+  struct warcsum_struct ws;
+  process_args (argc, argv, &ws.args);
   FILE* f_out;
-  f_out = fopen (m.args.f_output, "a");
+  if (ws.args.append)
+    {
+      f_out = fopen (ws.args.f_output, "a");
+    }
+  else
+    {
+      f_out = fopen (ws.args.f_output, "w");
 
+    }
   z_stream z;
-  /* z_stream initialization */
-  gzmInflateInit (&z);
-  z.next_in = calloc ((m.args.max_in + 1), sizeof (Bytef)); //extra byte for the null terminator
-  z.next_out = calloc ((m.args.max_out + 1), sizeof (Bytef));
 
-  /* mydata initialization.*/
-  m.max_in = m.args.max_in;
-  m.max_out = m.args.max_out;
-  m.hash_algo = m.args.hash_code;
+  init (&z, &ws);
 
-  process_file (m.args.f_input, f_out, &z, &m);
-  /* z_stream initialization */
-  inflateEnd (&z);
-  free (z.next_in);
-  free (z.next_out);
-  
+  process_file (ws.args.f_input, f_out, &z, &ws);
+
+  end (&z);
+
   fclose (f_out);
   return 0;
 }

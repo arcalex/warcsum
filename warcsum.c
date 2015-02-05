@@ -296,7 +296,7 @@ process_warcheader (z_stream *z, void* vp)
   ssize_t read_length;
   size_t ZERO;
   short payload_digest_set = 0;
-
+  short is_warc_member = 1;
   /* 
    * fmemopen is used to handle strings in memory as files for easier reading 
    * line by line
@@ -304,16 +304,17 @@ process_warcheader (z_stream *z, void* vp)
   FILE* member_file;
   member_file = fmemopen (z->next_out, attrs->effective_out - z->avail_out, "r");
 
+  /* allocate URI dynamically to handle large URLs*/
+  char* value = calloc (attrs->effective_out, sizeof (char));
+  attrs->URI = calloc (attrs->effective_out, sizeof (char));
+
   /* Something went wrong creating member_file */
   if (member_file == NULL)
     {
       printf ("Could not process header\n");
-      return_value = -1;
+      return -1;
     }
 
-  /* allocate URI dynamically to handle large URLs*/
-  char* value = calloc (attrs->effective_out, sizeof (char));
-  attrs->URI = calloc (attrs->effective_out, sizeof (char));
 
 
   /* TIME */
@@ -331,20 +332,21 @@ process_warcheader (z_stream *z, void* vp)
     }
 
   /* Check if it has WARC header */
-  if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER))
+  // comparison with WARC_HEADER length added to handle single line files
+  if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER)
+      && attrs->effective_out - z->avail_out > strlen (WARC_HEADER))
     {
       if (attrs->args.verbose)
         {
-          printf ("Not a WARC file!!\n");
+          printf ("Not a WARC member!!\n");
         }
-      free (str);
-      fclose (member_file);
 
       /* TIME */
       time_t then_parse;
       time (&then_parse);
       time_parse += difftime (then_parse, now_parse);
       /* END OF TIME */
+      is_warc_member = 0;
       return_value = -1;
     }
 
@@ -466,7 +468,7 @@ process_warcheader (z_stream *z, void* vp)
   fclose (member_file);
 
   /* if end of warc header (empty line) was not encountered, then need_double */
-  if (read_bytes == attrs->effective_out - z->avail_out)
+  if (read_bytes == attrs->effective_out - z->avail_out && is_warc_member)
     {
       attrs->need_double = 1;
       return_value = -1;
@@ -901,6 +903,8 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
   ws->effective_in = ws->args.real_in;
   ws->effective_out = ws->args.real_out;
 
+
+//  fseek (f_in, 35755203, SEEK_SET);
   // process member by member from the file, till end of file
   do
     {
@@ -934,6 +938,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
         }
       ws->need_double = 0;
       process_member (f_in, f_out, z, ws);
+//      fseek (f_in, 0, SEEK_END);
 
     }
   while (ftell (f_in) < file_size || ws->need_double);
@@ -1090,6 +1095,11 @@ process_args (int argc, char **argv, struct cli_args* args)
 int
 main (int argc, char **argv)
 {
+  /* TIME */
+  clock_t now;
+  now = clock ();
+  /* TIME */
+
   struct warcsum_struct ws;
   process_args (argc, argv, &ws.args);
   FILE* f_out;
@@ -1111,5 +1121,22 @@ main (int argc, char **argv)
   end (&z);
 
   fclose (f_out);
+
+  /* TIME */
+  clock_t then;
+  then = clock ();
+  float whole_time = (((float) then - (float) now) / 1000000.0F) * 1000;
+  /* END OF TIME */
+
+  /* Print time to file */
+  FILE* f_time;
+  f_time = fopen ("f_time", "w");
+  char s_time[1000];
+  sprintf (s_time, "time: %f\tin %d\tout %d\n", whole_time, ws.args.real_in,
+           ws.args.real_out);
+  fwrite (s_time, strlen (s_time), 1, f_time);
+  fclose (f_time);
+  /* Print time to file */
+
   return 0;
 }

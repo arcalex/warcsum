@@ -1,0 +1,52 @@
+.TH WARCSUM 1
+.SH NAME
+warcsum \- reads multimember warc files and generates digest for the
+http response members.
+.SH SYNOPSIS
+.B warcsum
+[\fB\-i\fR \fIFILE\fR]
+[\fB\-o\fR \fIFILE\fR]
+[\fB\-h\fR \fIHASH ALGO\fR]
+[\fB\-n\fR \fIInput buffer size\fR]
+[\fB\-u\fR \fIOutput buffer size\fR]
+\fB\-a\fR
+\fB\-f\fR
+\fB\-v\fR
+
+.SH DESCRIPTION
+
+warcsum takes as processes a multimember (or a single member) warcfile
+and produces digest file of all members in the file. The digest file
+consists of a single line describing each response member whose response
+type is http.
+
+A digest line typically contains the following fields:
+<WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+
+.SH OPTIONS
+.TP
+.BR \-i ", " \-\-input =\fIFILE\fR
+Path to warcfile.
+.TP
+.BR \-o ", " \-\-ouput =\fIFILE\fR
+Path to digest file.
+.TP
+.BR \-h ", " \-\-hash =\fIHASHING_ALGORITHM\fR
+Hashing algorithm to be used for hashing the warc member payload.
+Possible options are \fImd5\fR, \fIsha1\fR or \fIsha256\fR. The default
+option is \fIsha1\fR.
+.TP
+.BR \-f ", " \-\-force
+Force recalculate hash and discard stored hash in the WARC member
+header. If \fB\-\-hash\fR option was supplied and hash type is not
+\fIsha1\fR, hash is recalculated by default.
+.TP
+.BR \-a ", " \-\-append
+Append to output file instead of rewriting it.
+.TP
+.BR \-v ", " \-\-verbose
+Explain what is being done.
+
+.SH EXAMPLES
+warcsum -i JAN25_01628-20130824061129577-00293-11971~aa112543.archive.bibalex.org~8443.warc.gz
+-h sha1 -n 8192 -u 16384 -o digest -fv

@@ -1095,11 +1095,6 @@ process_args (int argc, char **argv, struct cli_args* args)
 int
 main (int argc, char **argv)
 {
-  /* TIME */
-  clock_t now;
-  now = clock ();
-  /* TIME */
-
   struct warcsum_struct ws;
   process_args (argc, argv, &ws.args);
   FILE* f_out;
@@ -1121,22 +1116,6 @@ main (int argc, char **argv)
   end (&z);
 
   fclose (f_out);
-
-  /* TIME */
-  clock_t then;
-  then = clock ();
-  float whole_time = (((float) then - (float) now) / 1000000.0F) * 1000;
-  /* END OF TIME */
-
-  /* Print time to file */
-  FILE* f_time;
-  f_time = fopen ("f_time", "w");
-  char s_time[1000];
-  sprintf (s_time, "time: %f\tin %d\tout %d\n", whole_time, ws.args.real_in,
-           ws.args.real_out);
-  fwrite (s_time, strlen (s_time), 1, f_time);
-  fclose (f_time);
-  /* Print time to file */
 
   return 0;
 }

@@ -48,5 +48,35 @@ Append to output file instead of rewriting it.
 Explain what is being done.
 
 .SH EXAMPLES
-warcsum -i JAN25_01628-20130824061129577-00293-11971~aa112543.archive.bibalex.org~8443.warc.gz
--h sha1 -n 8192 -u 16384 -o digest -fv
+warcsum -i input.warc.gz -h sha1 -n 8192 -u 16384 -o digest -fv
+
+.SH COPYRIGHT
+Copyright (C) 2014 Bibliotheca Alexandrina
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+This program acts as the first step in arcalex project.
+
+Given a compressed multimember warc.gz (or a singlemember warc.gz)
+file,
+this program calculates its digest and appends it to given digests
+file.
+.TP
+Manifest contains following data:
+     1. Warc file name
+     2. Offset (compressed)
+     3. End (compressed)
+     4. URI
+     5. Date
+     6. Digest

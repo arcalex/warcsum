@@ -23,7 +23,7 @@
  * Manifest contains following data:
  *      1. Warc file name
  *      2. Offset (compressed)
- *      3. Length (compressed)
+ *      3. End (compressed)
  *      4. URI
  *      5. Date
  *      6. Digest
@@ -50,6 +50,7 @@
 #include <gzmulti.h>
 #include <math.h>
 #include <time.h>
+#include <limits.h>
 
 #define WARC_TYPE_LENGTH 10
 #define CONTENT_TYPE_LENGTH 20
@@ -79,8 +80,8 @@ struct cli_args {
     char hash_char[KEY_LENGTH];
     char f_input[FILE_NAME_LENGTH];
     char f_output[FILE_NAME_LENGTH];
-    int real_in;
-    int real_out;
+    unsigned int real_in;
+    unsigned int real_out;
     int append;
 };
 
@@ -93,10 +94,10 @@ struct warcsum_struct {
     void* hash_ctx;
     int response;
     int hash_algo;
-    int START;
-    int END;
-    int effective_in;
-    int effective_out;
+    unsigned int START;
+    unsigned int END;
+    unsigned int effective_in;
+    unsigned int effective_out;
     int need_double;
     char last_4[4];
     int size_last_4;
@@ -179,6 +180,16 @@ void reset(z_stream* z, struct warcsum_struct* m);
  * Destroy z_stream 
  */
 void end (z_stream* z);
+
+/*
+ * Display version
+ */
+void version();
+
+/*
+ * Display help page
+ */
+void help();
 
 extern int versionsort();
 #endif	/* WARCSUM_H */

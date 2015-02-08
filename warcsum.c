@@ -836,11 +836,11 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
   hash_init (&ws->hash_ctx, ws->args.hash_code);
 
   /* call inflateMember from libgzMulti */
-  int err = inflateMember (z, f_in, ws->effective_in, 
+  int err = inflateMember (z, f_in, ws->effective_in,
                            ws->effective_out, process_chunk, ws);
 
   /* Finalize hash_ctx and produce calculated digest */
-  hash_final (ws->hash_ctx, ws->args.hash_code, 
+  hash_final (ws->hash_ctx, ws->args.hash_code,
               ws->computed_digest, ws->args);
 
   /* store position of end of member in compressed file
@@ -852,7 +852,7 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
     {
       char final_digest[DIGEST_LENGTH];
       // if calculated hash was chosen
-      if (ws->args.force_recalculate_digest || ws->hash_algo != 2) 
+      if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
         {
           strcpy (final_digest, ws->computed_digest);
         }
@@ -1002,7 +1002,7 @@ init (z_stream* z, struct warcsum_struct* ws)
   /* z_stream initialization */
   gzmInflateInit (z);
   //extra byte for the null terminator
-  z->next_in = calloc ((ws->args.real_in + 1), sizeof (Bytef)); 
+  z->next_in = calloc ((ws->args.real_in + 1), sizeof (Bytef));
   z->next_out = calloc ((ws->args.real_out + 1), sizeof (Bytef));
 
   /* warcsum_struct initialization.*/
@@ -1061,12 +1061,14 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"input-buffer", required_argument, 0, 'n'},
     {"output-buffer", required_argument, 0, 'u'},
     {"append", no_argument, 0, 'a'},
+    {"help", no_argument, 0, 'p'},
+    {"version", no_argument, 0, 'V'},
     {0, 0, 0, 0}
   };
 
   int option_index = 0;
 
-  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fva",
+  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fvapV",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -1114,6 +1116,12 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'a':
           args->append = 1;
           break;
+        case 'V':
+          version ();
+          exit (0);
+        case 'p':
+          help ();
+          exit (0);
         default:
           fprintf (stderr, "Usage: warcsum [-i input file | required] "
                    "[-o output file | required] "
@@ -1139,6 +1147,44 @@ process_args (int argc, char **argv, struct cli_args* args)
       exit (EXIT_FAILURE);
     }
   return 0;
+}
+
+void
+version ()
+{
+  printf ("GNU warcsum 0.1\n"
+          " * Copyright (C) 2014 Bibliotheca Alexandrina\n");
+}
+
+void
+help ()
+{
+  printf ("Usage\n");
+  printf ("\twarcsum [-i FILE] [-o FILE] [-h HASH ALGO] "
+          "[-n Input buffer size] [-u Output buffer size] -a -f -v\n");
+  printf ("Options\n");
+  printf ("\t-i, --input=FILE\n");
+  printf ("\t\tPath to warcfile.\n");
+  printf ("\n");
+  printf ("\t-o, --ouput=FILE\n");
+  printf ("\t\tPath to digest file.\n");
+  printf ("\n");
+  printf ("\t-h, --hash=HASHING_ALGORITHM\n");
+  printf ("\t\tHashing algorithm to be used for hashing the warc member "
+          "payload.  Possible options are md5, sha1 or sha256. "
+          "The default option is sha1.\n");
+  printf ("\n");
+  printf ("\t-f, --force\n");
+  printf ("\t\tForce recalculate hash and discard stored hash "
+          "in the WARC member header. If --hash option was supplied and hash "
+          "type is not sha1, hash is recalculated by default.\n");
+  printf ("\n");
+  printf ("\t-a, --append\n");
+  printf ("\t\tAppend to output file instead of rewriting it.\n");
+  printf ("\n");
+  printf ("\t-v, --verbose\n");
+  printf ("\t\tExplain what is being done.\n");
+  printf ("\n");
 }
 
 int

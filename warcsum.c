@@ -286,6 +286,9 @@ strcmp_case_insensitive (char* a, const char* b)
     }
 }
 
+/* 
+ * Process warcheader to check if http response, then extract DATE and URI
+ */
 int
 process_warcheader (z_stream *z, void* vp)
 {
@@ -540,9 +543,7 @@ process_warcheader (z_stream *z, void* vp)
   return return_value == -1 ? -1 : read_bytes;
 }
 
-/*
- * Read the http header and discard it totally
- */
+/* Read the http header and discard it totally */
 int
 process_httpheader (z_stream *z, void *vp, int header_offset)
 {
@@ -592,9 +593,7 @@ process_httpheader (z_stream *z, void *vp, int header_offset)
   return return_value == -1 ? -1 : read_bytes;
 }
 
-/*
- * Process WARC header and extract: URI, Date
- */
+/* Process WARC header and extract: URI, Date */
 int
 process_header (z_stream *z, void* vp)
 {
@@ -810,9 +809,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
   /* END OF TIME */
 }
 
-/*
- * Processes next member from warc.gz file pointer
- */
+/* Processes next member from warc.gz file pointer */
 int
 process_member (FILE* f_in, FILE* f_out, z_stream *z,
                 struct warcsum_struct* ws)
@@ -897,6 +894,24 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
       fprintf (stderr, "Unable to open file: %s\n", in);
       return 1;
     }
+
+  /* check if regular file */
+  int fd = fileno (f_in);
+  struct stat ss = {0};
+
+  if (-1 == fstat (fd, &ss))
+    {
+      perror ("fstat() failed");
+      return 1;
+    }
+
+  else if (!S_ISREG (ss.st_mode))
+    {
+      printf ("%s is not a regular file.\n", in);
+      fclose (f_in);
+      return 1;
+    }
+
 
   /* Calculate file size */
   fseek (f_in, 0, SEEK_END);
@@ -995,6 +1010,51 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
   return 0;
 }
 
+/* Process all warc.gz files in a directory */
+int
+process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
+{
+  DIR *dir;
+  struct dirent *ent;
+  if ((dir = opendir (input_dir)) != NULL)
+    {
+      while ((ent = readdir (dir)) != NULL)
+        {
+          // cat dir path to file
+          char full_file_path[FILE_NAME_LENGTH];
+          strcpy (full_file_path, input_dir);
+          strcat (full_file_path, "/");
+          strcat (full_file_path, ent->d_name);
+          // if "." or "..", skip it
+          if (!strcmp_case_insensitive (ent->d_name, ".")
+              || !strcmp_case_insensitive (ent->d_name, ".."));
+            // if a regular file, process it
+          else if (ent->d_type == DT_REG)
+            {
+              process_file (full_file_path, f_out, z, ws);
+            }
+            // if a directory, recurse through it
+          else if (ent->d_type == DT_DIR)
+            {
+              // add '/' to the end of the directory path
+              process_directory (full_file_path, f_out, z, ws);
+            }
+          else
+            {
+              if (ws->args.verbose)
+                {
+                  printf ("%s is neither a regular file nor a directory!",
+                          ent->d_name);
+                }
+            }
+        }
+      closedir (dir);
+      return 0;
+    }
+  perror ("Could not open directory !!\n");
+  return 1;
+}
+
 /* Initialize z_stream and warcsum_struct */
 void
 init (z_stream* z, struct warcsum_struct* ws)
@@ -1068,7 +1128,7 @@ process_args (int argc, char **argv, struct cli_args* args)
 
   int option_index = 0;
 
-  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fvapV",
+  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fvapVr",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -1116,18 +1176,22 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'a':
           args->append = 1;
           break;
+        case 'r':
+          args->recursive = 1;
+          break;
         case 'V':
           version ();
-          exit (0);
+          exit (EXIT_SUCCESS);
         case 'p':
           help ();
-          exit (0);
+          exit (EXIT_SUCCESS);
         default:
           fprintf (stderr, "Usage: warcsum [-i input file | required] "
                    "[-o output file | required] "
                    "[-h hashing algorithm] "
                    "[-f force digest calculation] "
                    "[-v verbose] "
+                   "[-r recursive] "
                    "[-n input buffer size] "
                    "[-u output buffer size] "
                    "[-a append] \n");
@@ -1149,6 +1213,9 @@ process_args (int argc, char **argv, struct cli_args* args)
   return 0;
 }
 
+/*
+ * Display version
+ */
 void
 version ()
 {
@@ -1156,6 +1223,9 @@ version ()
           " * Copyright (C) 2014 Bibliotheca Alexandrina\n");
 }
 
+/*
+ * Display help page
+ */
 void
 help ()
 {
@@ -1200,14 +1270,19 @@ main (int argc, char **argv)
   else
     {
       f_out = fopen (ws.args.f_output, "w");
-
     }
   z_stream z;
 
   init (&z, &ws);
 
-  process_file (ws.args.f_input, f_out, &z, &ws);
-
+  if (ws.args.recursive)
+    {
+      process_directory (ws.args.f_input, f_out, &z, &ws);
+    }
+  else
+    {
+      process_file (ws.args.f_input, f_out, &z, &ws);
+    }
   end (&z);
 
   fclose (f_out);

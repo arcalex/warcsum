@@ -60,7 +60,7 @@
 #define FILE_NAME_LENGTH 1024
 #define DATE_LENGTH 32
 #define KEY_LENGTH 32
-#define DIGEST_LENGTH 64
+#define DIGEST_LENGTH 65
 #define BINARY_SHA1_LENGTH 160
 
 const char* WARC_HEADER = "WARC/1.0\r";

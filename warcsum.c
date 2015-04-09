@@ -158,8 +158,6 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
-      printf ("%s\n%d\n", computed_digest, j);
-      exit (1);
       if (args.verbose)
         {
           printf ("Hash: MD5 \n");

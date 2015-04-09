@@ -152,8 +152,8 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       ret = MD5_Final (result, (MD5_CTX*) hash_ctx);
       for (i = 0; i < MD5_DIGEST_LENGTH; i++, j += 2)
         {
-          char temp[2];
-          snprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
+          char temp[3];
+          snprintf (temp, sizeof (temp), "%02x", result[i]);
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
@@ -169,8 +169,8 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       ret = SHA1_Final (result, (SHA_CTX*) hash_ctx);
       for (i = 0; i < SHA_DIGEST_LENGTH; i++, j += 2)
         {
-          char temp[2];
-          snprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
+          char temp[3];
+          snprintf (temp, sizeof (temp), "%02x", result[i]);
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
@@ -184,8 +184,8 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       ret = SHA256_Final (result, (SHA256_CTX*) hash_ctx);
       for (i = 0; i < SHA256_DIGEST_LENGTH; i++, j += 2)
         {
-          char temp[2];
-          snprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
+          char temp[3];
+          snprintf (temp, sizeof (temp), "%02x", result[i]);
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
@@ -861,7 +861,7 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
           strcpy (final_digest, ws->fixed_digest);
         }
 
-      snprintf (ws->manifest, sizeof (ws->manifest) + 1, "%s %u %u %s %s %s\n", ws->WARCFILE_NAME,
+      snprintf (ws->manifest, sizeof (ws->manifest), "%s %u %u %s %s %s\n", ws->WARCFILE_NAME,
                 ws->START, ws->END - ws->START, ws->URI,
                 ws->DATE, final_digest);
 

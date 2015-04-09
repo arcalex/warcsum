@@ -108,7 +108,7 @@ dump_hash_cluster (FILE* output, Record *recList)
       Record *tempRec = tempColl;
       while (tempRec != NULL)
         {
-          fprintf (output, "%s %ld %ld %s %s %s %d"
+          fprintf (output, "%s %zu %zu %s %s %s %zu"
                    , tempRec->filename
                    , tempRec->offset
                    , tempRec->length
@@ -118,7 +118,7 @@ dump_hash_cluster (FILE* output, Record *recList)
                    , tempRec->ext);
           if (options.proc)
             {
-              fprintf (output, " %d", tempRec->copy_no);
+              fprintf (output, " %zu", tempRec->copy_no);
               if (tempRec->copy_no == 1)
                 fprintf (output, " - -");
               else
@@ -140,16 +140,32 @@ mySQL_connect (FILE *dbSet, MYSQL * conn)
 {
   char *server = NULL, *user = NULL, *password = NULL, *database = NULL;
   size_t len = 0;
-  getline (&server, &len, dbSet);
+  if (getline (&server, &len, dbSet) <= 0)
+    {
+      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      return NULL;
+    }
   server[strlen (server) - 1] = '\0';
   len = 0;
-  getline (&user, &len, dbSet);
+  if (getline (&user, &len, dbSet) <= 0)
+    {
+      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      return NULL;
+    }
   user[strlen (user) - 1] = '\0';
   len = 0;
-  getline (&password, &len, dbSet);
+  if (getline (&password, &len, dbSet) <= 0)
+    {
+      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      return NULL;
+    }
   password[strlen (password) - 1] = '\0';
   len = 0;
-  getline (&database, &len, dbSet);
+  if (getline (&database, &len, dbSet) <= 0)
+    {
+      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      return NULL;
+    }
   database[strlen (database) - 1] = '\0';
   conn = mysql_init (NULL);
   /* Connect to database */
@@ -457,7 +473,7 @@ http_download_file (char *url, Record *record)
   CURLcode res;
 
   char* range = (char*) malloc (50);
-  sprintf (range, "%d-%d", record->offset, record->offset + record->length - 1);
+  sprintf (range, "%zu-%zu", record->offset, record->offset + record->length - 1);
 
   if (options.memory)
     {
@@ -908,20 +924,20 @@ main (int argc, char** argv)
           size_t total = totalRecs + totalSkip;
           size_t unique = totalRecs - (totalDup + totalColls);
 
-          printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%).\
-\n\n  processed:%ld (%.2f%)\n    unique: %ld (%.2f%).\
-\n    duplicate: %ld (%.2f%).\n    collision: %ld (%.2f%).\n"
+          printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%%).\
+\n\n  processed:%ld (%.2f%%)\n    unique: %ld (%.2f%%).\
+\n    duplicate: %ld (%.2f%%).\n    collision: %ld (%.2f%%).\n"
                   , total
                   , totalSkip
-                  , ((float) totalSkip * 100 / total)
+                  , totalSkip * 100.0 / total
                   , totalRecs
-                  , ((float) totalRecs * 100 / total)
+                  , totalRecs * 100.0 / total
                   , unique
-                  , ((float) unique * 100 / totalRecs)
+                  , unique * 100.0 / totalRecs
                   , totalDup
-                  , ((float) totalDup * 100 / totalRecs)
+                  , totalDup * 100.0 / totalRecs
                   , totalColls
-                  , ((float) totalColls * 100 / totalRecs));
+                  , totalColls * 100.0 / totalRecs);
           printf ("Processing time: %f seconds\nNetwork time: %f seconds\n\
 Database time: %f seconds\n"
                   , compareTime

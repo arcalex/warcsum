@@ -153,11 +153,13 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       for (i = 0; i < MD5_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
-          snprintf (temp, sizeof (temp), "%02x", result[i]);
+          snprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
+      printf ("%s\n%d\n", computed_digest, j);
+      exit (1);
       if (args.verbose)
         {
           printf ("Hash: MD5 \n");
@@ -166,12 +168,12 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
     case 2:
       ret = SHA1_Final (result, (SHA_CTX*) hash_ctx);
       for (i = 0; i < SHA_DIGEST_LENGTH; i++, j += 2)
-      {
-        char temp[2];
-        snprintf (temp, sizeof (temp), "%02x", result[i]);
-        computed_digest[j] = temp[0];
-        computed_digest[j + 1] = temp[1];
-      }
+        {
+          char temp[2];
+          snprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
+        }
       computed_digest[j] = '\0';
       if (args.verbose)
         {
@@ -183,7 +185,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       for (i = 0; i < SHA256_DIGEST_LENGTH; i++, j += 2)
         {
           char temp[2];
-          snprintf (temp, sizeof (temp), "%02x", result[i]);
+          sprintf (temp, sizeof (temp) + 1, "%02x", result[i]);
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
@@ -199,12 +201,13 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       exit (EXIT_FAILURE);
     }
   free (hash_ctx);
-  return ret;
   /* TIME */
   time_t then_hash;
   time (&then_hash);
   time_hash += difftime (then_hash, now_hash);
   /* END OF TIME */
+  return ret;
+
 }
 
 /*
@@ -817,7 +820,7 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
   if (ws->args.verbose)
     {
       printf ("\n\n");
-      printf ("OFFSET: %ld\n", ftell (f_in));
+      printf ("OFFSET: %u\n", ftell (f_in));
     }
 
   /* Reset mydata */
@@ -858,9 +861,9 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
           strcpy (final_digest, ws->fixed_digest);
         }
 
-      snprintf (ws->manifest, sizeof(ws->manifest), "%s %u %u %s %s %s\n", ws->WARCFILE_NAME,
-               ws->START, ws->END - ws->START, ws->URI,
-               ws->DATE, final_digest);
+      snprintf (ws->manifest, sizeof (ws->manifest) + 1, "%s %ld %ld %s %s %s\n", ws->WARCFILE_NAME,
+                ws->START, ws->END - ws->START, ws->URI,
+                ws->DATE, final_digest);
 
       if (ws->args.verbose)
         {
@@ -1102,9 +1105,9 @@ process_args (int argc, char **argv, struct cli_args* args)
   /* Default values */
   args->force_recalculate_digest = 0;
   args->verbose = 0;
-  args->recursive = 0;
   args->hash_code = 2;
   args->append = 0;
+  args->recursive = 0;
   strcpy (args->hash_char, "SHA1");
   strcpy (args->f_input, "");
   strcpy (args->f_output, "");

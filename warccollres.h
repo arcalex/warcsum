@@ -25,6 +25,8 @@
 #include <mysql/mysql.h>
 #include <curl/curl.h>
 #include <gzmulti.h>
+#include <time.h>
+#include <errno.h>
 
 #define true 1
 #define false 0
@@ -32,46 +34,82 @@
 
 bool quite = false, verbose = false;
 
-typedef struct MemoryStruct
-{
-  char *memory;
-  size_t size;
+char tmpFilenameTemplate [] = "warccollres-tmp-XXXXXXXXX";
+
+static struct options {
+    bool quite;
+    bool verbose;
+    bool memory;
+    bool proc;
+    
+    unsigned int input_buffer, output_buffer;
+
+    char *iFile, *oFile, *dbFile;
+} options;
+
+static struct option long_options[] = {
+    {"input", required_argument, 0, 'i'},
+    {"output", required_argument, 0, 'o'},
+    {"db-settings", required_argument, 0, 's'},
+    {"proc", no_argument, 0, 'p'},
+    {"input-buffer", required_argument, 0, 'I'},
+    {"output-buffer", required_argument, 0, 'O'},
+    {"memory-only", no_argument, 0, 'm'},
+    {"quite", no_argument, 0, 'q'},
+    {"verbose", no_argument, 0, 'v'},
+    {0, 0, 0, 0}
+};
+
+typedef struct MemoryStruct {
+    char *memory;
+    size_t size;
 } MemoryStruct;
 
-typedef struct Record
-{
-  char *filename, *uri, *date, *hash;
-  size_t offset, length, ext, copyNo;
-  MemoryStruct *data;
-  struct Record *next, *nextColl;
+typedef struct Record {
+    char *filename, *uri, *date, *hash;
+    size_t offset, length, ext, copy_no, member_size;
+    MemoryStruct *member_memory, *compressed_member_memory;
+    struct Record *next, *next_collision;
+    FILE *member_file, *compressed_member_file;
 } Record;
 
+int
+process_args(int argc, char** argv);
+
 Record*
-createRecord (char * line);
+create_record(char * line);
 
 void
-destroyRecord (Record *object);
+destroy_record(Record *object);
 
 void
-dumpHashCluster (FILE* output, Record *recList, bool proc);
+dump_hash_cluster(FILE* output, Record *recList);
 
 MYSQL*
-mySQLConnect (FILE *dbSet, MYSQL *conn);
+mySQL_connect(FILE *dbSet, MYSQL *conn);
 
 char*
-getURLfromDB (MYSQL *conn, char* filename);
+get_url_from_db(MYSQL *conn, char* filename);
 
 bool
-compRec (Record *first, Record *second);
+compare_records(Record *first, Record *second);
+
+bool
+compare_records_file(Record *first, Record *second);
 
 static size_t
-WriteMemoryCallback (void *contents, size_t size, size_t nmemb, void *userp);
+write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);
 
-MemoryStruct*
-httpDLFile (char *url, int offset, int length);
+bool
+http_download_file(char *url, Record *record);
 
+bool
+download_record(Record *record, MYSQL *conn, size_t *lineNo);
 
+bool
+inflate_record_member(Record *record);
 
+void
+process_chunk(z_stream *z, int chunk, void *vp);
 
 #endif	/* WARCCOLLRES_H */
-

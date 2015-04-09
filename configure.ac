@@ -13,6 +13,8 @@ AM_PROG_CC_C_O
 
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lcrypto':
+AC_CHECK_LIB([gzmulti], [main])
+# FIXME: Replace `main' with a function in `-lcrypto':
 AC_CHECK_LIB([crypto], [main])
 # FIXME: Replace `main' with a function in `-lcurl':
 AC_CHECK_LIB([curl], [main])

@@ -55,7 +55,7 @@
 #include <limits.h>
 
 #define WARC_TYPE_LENGTH 10
-#define CONTENT_TYPE_LENGTH 20
+#define CONTENT_TYPE_LENGTH 64
 #define MANIFEST_LINE_SIZE 4*1024
 #define FILE_NAME_LENGTH 1024
 #define DATE_LENGTH 32

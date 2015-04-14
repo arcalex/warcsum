@@ -1,6 +1,6 @@
 /* 
  * 
- * Copyright (C) 2014 Bibliotheca Alexandrina
+ * Copyright (C) 2015 Bibliotheca Alexandrina
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -1116,21 +1116,22 @@ process_args (int argc, char **argv, struct cli_args* args)
   static struct option long_options[] = {
     {"output", required_argument, 0, 'o'},
     {"input", required_argument, 0, 'i'},
-    {"hash", required_argument, 0, 'h'},
+    {"hash", required_argument, 0, 'H'},
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"force-recalc", no_argument, 0, 'f'},
-    {"input-buffer", required_argument, 0, 'n'},
-    {"output-buffer", required_argument, 0, 'u'},
+    {"input-buffer", required_argument, 0, 'I'},
+    {"output-buffer", required_argument, 0, 'O'},
     {"append", no_argument, 0, 'a'},
-    {"help", no_argument, 0, 'p'},
+    {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {0, 0, 0, 0}
   };
 
   int option_index = 0;
+  int length;
 
-  while ((opt = getopt_long (argc, argv, "n:u:i:o:h:fvapVr",
+  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVr",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -1138,7 +1139,7 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'i':
           strcpy (args->f_input, optarg);
           break;
-        case 'h':
+        case 'H':
           strcpy (args->hash_char, optarg);
           if (!strcmp_case_insensitive (args->hash_char, "md5"))
             {
@@ -1169,12 +1170,41 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'v':
           args->verbose = 1;
           break;
-        case 'n':
-          args->real_in = atoi (optarg);
+        case 'I':
+          length = strlen (optarg);
+          switch (optarg[length - 1])
+            {
+            case 'K':
+              args->real_in = atoi (optarg) * 1024;
+              break;
+            case 'M':
+              args->real_in = atoi (optarg) * 1024 * 1024;
+              break;
+            case 'G':
+              args->real_in = atoi (optarg) * 1024 * 1024 * 1024;
+              break;
+            default:
+              args->real_in = atoi (optarg);
+            }
           break;
-        case 'u':
-          args->real_out = atoi (optarg);
+        case 'O':
+          length = strlen (optarg);
+          switch (optarg[length - 1])
+            {
+            case 'K':
+              args->real_out = atoi (optarg) * 1024;
+              break;
+            case 'M':
+              args->real_out = atoi (optarg) * 1024 * 1024;
+              break;
+            case 'G':
+              args->real_out = atoi (optarg) * 1024 * 1024 * 1024;
+              break;
+            default:
+              args->real_out = atoi (optarg);
+            }
           break;
+
         case 'a':
           args->append = 1;
           break;
@@ -1184,18 +1214,18 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'V':
           version ();
           exit (EXIT_SUCCESS);
-        case 'p':
+        case 'h':
           help ();
           exit (EXIT_SUCCESS);
         default:
           fprintf (stderr, "Usage: warcsum [-i input file | required] "
                    "[-o output file | required] "
-                   "[-h hashing algorithm] "
+                   "[-H hashing algorithm] "
                    "[-f force digest calculation] "
                    "[-v verbose] "
                    "[-r recursive] "
-                   "[-n input buffer size] "
-                   "[-u output buffer size] "
+                   "[-I input buffer size] "
+                   "[-O output buffer size] "
                    "[-a append] \n");
           exit (EXIT_FAILURE);
         }
@@ -1204,11 +1234,12 @@ process_args (int argc, char **argv, struct cli_args* args)
     {
       fprintf (stderr, "Usage: warcsum [-i input file | required] "
                "[-o output file | required] "
-               "[-h hashing algorithm] "
+               "[-H hashing algorithm] "
                "[-f force digest calculation] "
                "[-v verbose] "
-               "[-n input buffer size] "
-               "[-u output buffer size] "
+               "[-r recursive] "
+               "[-I input buffer size] "
+               "[-O output buffer size] "
                "[-a append] \n");
       exit (EXIT_FAILURE);
     }
@@ -1222,7 +1253,7 @@ void
 version ()
 {
   printf ("GNU warcsum 0.1\n"
-          " * Copyright (C) 2014 Bibliotheca Alexandrina\n");
+          " * Copyright (C) 2015 Bibliotheca Alexandrina\n");
 }
 
 /*
@@ -1232,8 +1263,8 @@ void
 help ()
 {
   printf ("Usage\n");
-  printf ("\twarcsum [-i FILE] [-o FILE] [-h HASH ALGO] "
-          "[-n Input buffer size] [-u Output buffer size] -a -f -v\n");
+  printf ("\twarcsum [-i FILE] [-o FILE] [-H HASH ALGO] "
+          "[-I Input buffer size] [-O Output buffer size] -a -f -v\n");
   printf ("Options\n");
   printf ("\t-i, --input=FILE\n");
   printf ("\t\tPath to warcfile.\n");
@@ -1241,7 +1272,15 @@ help ()
   printf ("\t-o, --ouput=FILE\n");
   printf ("\t\tPath to digest file.\n");
   printf ("\n");
-  printf ("\t-h, --hash=HASHING_ALGORITHM\n");
+  printf ("\t-I, --input-buffer=SIZE\n");
+  printf ("\t\tInitial compressed buffer size, if size is not sufficient to "
+          "fit the headers, buffer size is doubled.\n");
+  printf ("\n");
+  printf ("\t-O, --output-buffer=SIZE\n");
+  printf ("\t\tInitial uncompressed buffer size, if size is not sufficient to "
+          "fit the headers, buffer size is doubled.\n");
+  printf ("\n");
+  printf ("\t-H, --hash=HASHING_ALGORITHM\n");
   printf ("\t\tHashing algorithm to be used for hashing the warc member "
           "payload.  Possible options are md5, sha1 or sha256. "
           "The default option is sha1.\n");
@@ -1255,7 +1294,6 @@ help ()
   printf ("\t\tAppend to output file instead of rewriting it.\n");
   printf ("\n");
   printf ("\t-v, --verbose\n");
-  printf ("\t\tExplain what is being done.\n");
   printf ("\n");
 }
 

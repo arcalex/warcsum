@@ -31,7 +31,15 @@ Path to warcfile.
 .BR \-o ", " \-\-ouput =\fIFILE\fR
 Path to digest file.
 .TP
-.BR \-h ", " \-\-hash =\fIHASHING_ALGORITHM\fR
+.BR \-I ", " \-\-input-buffer =\fISIZE\fR
+Initial uncompressed buffer size, if size is not sufficient to fit the headers,
+buffer size is doubled. It can be written in Bytes (default), Kilobytes, 
+Megabytes, or Gigabytes, as illustrated in \fBEXAMPLES\fR.
+.TP
+.BR \-O ", " \-\-ouput-buffer =\fISIZE\fR
+Path to digest file.
+.TP
+.BR \-H ", " \-\-hash =\fIHASHING_ALGORITHM\fR
 Hashing algorithm to be used for hashing the warc member payload.
 Possible options are \fImd5\fR, \fIsha1\fR or \fIsha256\fR. The default
 option is \fIsha1\fR.
@@ -48,10 +56,12 @@ Append to output file instead of rewriting it.
 Explain what is being done.
 
 .SH EXAMPLES
-warcsum -i input.warc.gz -h sha1 -n 8192 -u 16384 -o digest -fv
+warcsum -i input.warc.gz -h sha1 -I 8192 -O 16384 -o digest -fv
+
+warcsum -i input.warc.gz -h sha1 -I 8K -O 16K -o digest -a
 
 .SH COPYRIGHT
-Copyright (C) 2014 Bibliotheca Alexandrina
+Copyright (C) 2015 Bibliotheca Alexandrina
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

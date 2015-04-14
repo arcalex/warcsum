@@ -1273,6 +1273,11 @@ main (int argc, char **argv)
     {
       f_out = fopen (ws.args.f_output, "w");
     }
+  if (f_out == NULL)
+    {
+      printf ("Unable to open output file: %s\n", ws.args.f_output);
+      return 1;
+    }
   z_stream z;
 
   init (&z, &ws);

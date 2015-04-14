@@ -1044,7 +1044,7 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
             {
               if (ws->args.verbose)
                 {
-                  printf ("%s is neither a regular file nor a directory!",
+                  printf ("%s is neither a regular file nor a directory!\n",
                           ent->d_name);
                 }
             }

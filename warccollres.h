@@ -57,6 +57,7 @@ static struct option long_options[] = {
     {"memory-only", no_argument, 0, 'm'},
     {"quite", no_argument, 0, 'q'},
     {"verbose", no_argument, 0, 'v'},
+    {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
 };
 

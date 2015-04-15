@@ -1,0 +1,132 @@
+.TH WARCCOLLRES 1
+.SH NAME
+warccollres \- WARC collision resolver for the \fBwarcsum(1)\fR projects.
+.SH SYNOPSIS
+.B warccollres
+[\fB\-i\fR \fIFILE\fR]
+[\fB\-o\fR \fIFILE\fR]
+[\fB\-s\fR \fIFILE\fR]
+[\fB\-I\fR \fIInput buffer size\fR]
+[\fB\-O\fR \fIOutput buffer size\fR]
+\fB\-p\fR
+\fB\-m\fR
+\fB\-v\fR
+\fB\-q\fR
+\fB\-V\fR
+\fB\-h\fR
+
+.SH DESCRIPTION
+
+warccollres is part of the \fBwarcsum(1)\fR project.
+
+waccollres uses the digests manifest generated from \fBwarcsum(1)\fR sorted on
+the digests column, and compares the content of the WARC members with the same
+digest byte-by-byte to decide whether they are duplicates or collisions from
+the hashing alogrithm that was used.
+
+warccollres fetches the compressed WARC members from HTTP server(s), and the
+URL for each WARC file is fetched from mySQL database containing the WARC
+filename and the URL to download that file.
+.TP
+The digests manifest file contains following data:
+     1. Warc file name
+     2. Offset (compressed)
+     3. End (compressed)
+     4. URI
+     5. Date
+     6. Digest
+.TP
+The extended digest file contains following data:
+     1. Warc file name
+     2. Offset (compressed)
+     3. End (compressed)
+     4. URI
+     5. Date
+     6. Digest
+     7. Digest extension
+.TP
+If the \fB\-\-proc\fR was used, the extended digests manifest file \
+will include:
+     8. Copy number
+     9. Reference member URI
+     10. Reference member date
+.TP
+The digests manifest line should be in the format:
+<WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+.TP
+The extended digests manifest line should be in the format:
+<WARC filename> <member offset> <member end> <URI> <date> <hash digest> <hash
+extension>
+.TP
+The extended digests manifest with additional fields should be in the format:
+<WARC filename> <member offset> <member end> <URI> <date> <hash digest> <hash
+extension> <copy number> <reference uri> <reference date>
+
+.SH OPTIONS
+.TP
+.BR \-i ", " \-\-input =\fIFILE\fR
+Path to input digest file.
+.TP
+.BR \-o ", " \-\-ouput =\fIFILE\fR
+Path to output digest file.
+.TP
+.BR \-s ", " \-\-db\-settings =\fIFILE\fR
+Path to the file containing the database settings for mySQL connection.
+.TP
+.BR \-I ", " \-\-input\-buffer=\fINUMBER\fR
+The size for the input buffer used to read from temporary files. It can
+use the binary suffix \fIK\fR for KiB, \fIM\fR for MiB, and \fIG\fR
+for GiB. If no suffix was specified, the value will be in Bytes.
+
+The default value is 8 KiB.
+
+Used without \fB\-\-memory\-only\fR.
+.TP
+.BR \-O ", " \-\-output\-buffer=\fIFILE\fR
+The size for the output buffer used to read from temporary files. It can
+use the binary suffix \fIK\fR for KiB, \fIM\fRfor MiB, and \fIG\fR
+for GiB. If no suffix was specified, the value will be in Bytes.
+
+The default value is 16 KiB.
+
+Used without \fB\-\-memory\-only\fR.
+.TP
+.BR \-p ", " \-\-proc
+Resolve the reference of duplicate WARC members. See \fBwarcsumproc(1)\fR.
+.TP
+.BR \-m ", " \-\-memory\-only
+use the memory instead of temporary files for processing WARC members.
+.TP
+.BR \-v ", " \-\-verbose
+Explain what is being done.
+.TP
+.BR \-q ", " \-\-quite
+Do not produce any messages.
+.TP
+.BR \-V ", " \-\-version
+Print the version.
+.TP
+.BR \-h ", " \-\-help
+Print the help message.
+
+.SH EXAMPLES
+warccollres -pv -i input_digest -o output_digest -s db_setting -I 1M\
+ -O 2M
+
+warccollres -pvm -i input_digest -o output_digest -s db_setting
+
+.SH COPYRIGHT
+Copyright (C) 2014 Bibliotheca Alexandrina
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.

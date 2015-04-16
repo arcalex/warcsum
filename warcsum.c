@@ -108,7 +108,7 @@ hash_update (unsigned char* buffer, int hash,
   time_t now_hash;
   time (&now_hash);
   /* END OF TIME */
-
+  input_length = input_length < 0 ? 0 : input_length;
   switch (hash)
     {
     case 1: // calculate md5
@@ -790,14 +790,14 @@ process_chunk (z_stream* z, int chunk, void* vp)
         {
           ws->response = 1;
         }
-      
-      //skip member if empty and argument process empty not set     
+
+      // skip member if empty and argument skip empty is set
       if (ws->response && (next_out_length - read_bytes <= 4) && ws->args.skip_empty)
         {
-          ws->response = -1;
+          ws->response = 0;
         }
-
-      if (ws->response == 1)
+      
+      if (ws->response)
         {
           if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
             {

@@ -13,7 +13,52 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * warccollres is part of the warcsum project.
+ *
+ * waccollres uses the digests manifest generated from warcsum sorted on the
+ * digests column, and compares the content of the WARC members with the same
+ * digest byte-by-byte to decide whether they are duplicates or collisions from
+ * the hashing alogrithm that was used.
+ * 
+ * warccollres fetches the compressed WARC members from HTTP server(s), and the
+ * URL for each WARC file is fetched from mySQL database containing the WARC
+ * file name and the URL to download that file.
+ * 
+ * The digests manifest file contains following data:
+ *     1. Warc file name
+ *     2. Offset (compressed)
+ *     3. End (compressed)
+ *     4. URI
+ *     5. Date
+ *     6. Digest
+ * 
+ * The extended digest file contains following data:
+ *     1. Warc file name
+ *     2. Offset (compressed)
+ *     3. End (compressed)
+ *     4. URI
+ *     5. Date
+ *     6. Digest
+ *     7. Digest extension
+ * 
+ * If the --proc was used, the extended digests manifest file will include:
+ *     8. Copy number
+ *     9. Reference member URI
+ *     10. Reference member date
+ * 
+ * The digests manifest line should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * 
+ * The extended digests manifest line should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * <hash extension>
+ * 
+ * The extended digests manifest with additional fields should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * <hash extension> <copy number> <reference uri> <reference date>
  */
+
 #include "warccollres.h"
 
 clock_t start, end;
@@ -23,7 +68,7 @@ Record*
 create_record (char * line)
 {
   /* The Record constructor */
-  Record *object = malloc (sizeof (Record));
+  Record *object = calloc (1, sizeof (Record));
   object->next = NULL;
   object->next_collision = NULL;
   object->member_memory = NULL;
@@ -35,18 +80,18 @@ create_record (char * line)
   /* Parsing the input line and storing its token in the Record structure */
   char* token = NULL;
   token = strtok (line, " ");
-  object->filename = malloc (strlen (token) + 1);
+  object->filename = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->filename, token);
   object->offset = atoi (strtok (NULL, " "));
   object->length = atoi (strtok (NULL, " "));
   token = strtok (NULL, " ");
-  object->uri = malloc (strlen (token) + 1);
+  object->uri = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->uri, token);
   token = strtok (NULL, " ");
-  object->date = malloc (strlen (token) + 1);
+  object->date = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->date, token);
   token = strtok (NULL, " ");
-  object->hash = malloc (strlen (token) + 1);
+  object->hash = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->hash, token);
   return object;
 }
@@ -190,7 +235,8 @@ get_url_from_db (MYSQL *conn, char* filename)
 
   /* send SQL query */
   char temp[] = "SELECT url FROM `path_index` WHERE filename = '";
-  char *query = (char*) malloc (strlen (temp) + strlen (filename) + 2);
+  char *query = (char*) calloc (strlen (temp) + strlen (filename) + 2,
+                                sizeof (char));
   strcpy (query, temp);
   strcat (query, filename);
   strcat (query, "'");
@@ -207,7 +253,7 @@ get_url_from_db (MYSQL *conn, char* filename)
   char *url;
   if (row[0] != NULL)
     {
-      url = malloc (sizeof (char) * strlen (row[0]));
+      url = calloc (strlen (row[0]), sizeof (char));
       strcpy (url, row[0]);
     }
   else
@@ -224,44 +270,55 @@ compare_records (Record *first, Record * second)
   long firstIndex = 0, secondIndex = 0;
 
   //Seeking to the end of the WARC header of the first record.
-  for (firstIndex; first->member_memory->memory[firstIndex] != '\n' || \
-            (first->member_memory->memory[firstIndex + 1] != '\n' && \
-            first->member_memory->memory[firstIndex + 2] != '\n'); firstIndex++);
+  for (firstIndex;
+          first->member_memory->memory[firstIndex] != '\n' ||
+          (first->member_memory->memory[firstIndex + 1] != '\n' &&
+           first->member_memory->memory[firstIndex + 2] != '\n');
+          firstIndex++);
   if (first->member_memory->memory[firstIndex + 1] == '\n')
     firstIndex += 2;
   else
     firstIndex += 3;
   //Seeking to the end of the HTTP header of the first record.
-  for (firstIndex; first->member_memory->memory[firstIndex] != '\n' || \
-            (first->member_memory->memory[firstIndex + 1] != '\n' && \
-            first->member_memory->memory[firstIndex + 2] != '\n'); firstIndex++);
+  for (firstIndex;
+          first->member_memory->memory[firstIndex] != '\n' ||
+          (first->member_memory->memory[firstIndex + 1] != '\n' &&
+           first->member_memory->memory[firstIndex + 2] != '\n');
+          firstIndex++);
   if (first->member_memory->memory[firstIndex + 1] == '\n')
     firstIndex += 2;
   else
     firstIndex += 3;
   //Seeking to the end of the WARC header of the second record.
-  for (secondIndex; second->member_memory->memory[secondIndex] != '\n' || \
-            (second->member_memory->memory[secondIndex + 1] != '\n' && \
-            second->member_memory->memory[secondIndex + 2] != '\n'); secondIndex++);
+  for (secondIndex;
+          second->member_memory->memory[secondIndex] != '\n' ||
+          (second->member_memory->memory[secondIndex + 1] != '\n' &&
+           second->member_memory->memory[secondIndex + 2] != '\n');
+          secondIndex++);
   if (second->member_memory->memory[secondIndex + 1] == '\n')
     secondIndex += 2;
   else
     secondIndex += 3;
   //Seeking to the end of the HTTP header of the second record.
-  for (secondIndex; second->member_memory->memory[secondIndex] != '\n' || \
-            (second->member_memory->memory[secondIndex + 1] != '\n' && \
-            second->member_memory->memory[secondIndex + 2] != '\n'); secondIndex++);
+  for (secondIndex;
+          second->member_memory->memory[secondIndex] != '\n' ||
+          (second->member_memory->memory[secondIndex + 1] != '\n' &&
+           second->member_memory->memory[secondIndex + 2] != '\n');
+          secondIndex++);
   if (second->member_memory->memory[secondIndex + 1] == '\n')
     secondIndex += 2;
   else
     secondIndex += 3;
 
 
-  if ((first->member_memory->size - firstIndex) != (second->member_memory->size - secondIndex))
+  if ((first->member_memory->size - firstIndex) !=
+      (second->member_memory->size - secondIndex))
     return false;
-  while (firstIndex < first->member_memory->size - 4 && secondIndex < second->member_memory->size - 4)
+  while (firstIndex < first->member_memory->size - 4 &&
+         secondIndex < second->member_memory->size - 4)
     {
-      if (first->member_memory->memory[firstIndex++] != second->member_memory->memory[secondIndex++])
+      if (first->member_memory->memory[firstIndex++] !=
+          second->member_memory->memory[secondIndex++])
         return false;
     }
   return true;
@@ -279,7 +336,8 @@ compare_records_file (Record *first, Record * second)
   rewind (second->member_file);
 
   //Seeking to the end of the WARC header of the first record.
-  while (!feof (first->member_file) && (read = getline (&line, &len, first->member_file)) > 0)
+  while (!feof (first->member_file) &&
+         (read = getline (&line, &len, first->member_file)) > 0)
     {
       if (read == 2 && line[0] == '\r' && line[1] == '\n')
         break;
@@ -291,7 +349,8 @@ compare_records_file (Record *first, Record * second)
   line = NULL;
 
   //Seeking to the end of the HTTP header of the first record.
-  while (!feof (first->member_file) && (read = getline (&line, &len, first->member_file)) > 0)
+  while (!feof (first->member_file) &&
+         (read = getline (&line, &len, first->member_file)) > 0)
     {
       if ((read == 2 && line[0] == '\r' && line[1] == '\n') || \
           (read == 1 && line[0] == '\n'))
@@ -305,7 +364,8 @@ compare_records_file (Record *first, Record * second)
   len = 0;
 
   //Seeking to the end of the WARC header of the second record.
-  while (!feof (second->member_file) && (read = getline (&line, &len, second->member_file)) > 0)
+  while (!feof (second->member_file) &&
+         (read = getline (&line, &len, second->member_file)) > 0)
     {
       if (read == 2 && line[0] == '\r' && line[1] == '\n')
         break;
@@ -318,7 +378,8 @@ compare_records_file (Record *first, Record * second)
   len = 0;
 
   //Seeking to the end of the HTTP header of the second record.
-  while (!feof (second->member_file) && (read = getline (&line, &len, second->member_file)) > 0)
+  while (!feof (second->member_file) &&
+         (read = getline (&line, &len, second->member_file)) > 0)
     {
       if ((read == 2 && line[0] == '\r' && line[1] == '\n') || \
           (read == 1 && line[0] == '\n'))
@@ -338,13 +399,14 @@ compare_records_file (Record *first, Record * second)
   if ((first->member_size - firstIndex) != (second->member_size - secondIndex))
     return false;
 
-  firstBuffer = malloc (sizeof (char) * options.output_buffer);
-  secondBuffer = malloc (sizeof (char) * options.output_buffer);
+  firstBuffer = calloc (options.output_buffer, sizeof (char));
+  secondBuffer = calloc (options.output_buffer, sizeof (char));
 
   while (!(feof (first->member_file) && feof (first->member_file)))
     {
       read = fread (firstBuffer, 1, options.output_buffer, first->member_file);
-      read = fread (secondBuffer, 1, options.output_buffer, second->member_file);
+      read = fread (secondBuffer, 1, options.output_buffer,
+                    second->member_file);
 
       size_t i;
       for (i = 0; i < read; i++)
@@ -371,34 +433,47 @@ process_chunk (z_stream *z, int chunk, void *vp)
 
   if (options.memory)
     {
-      record->member_memory->memory = realloc (record->member_memory->memory, z->total_out);
-      memcpy (&(record->member_memory->memory[record->member_memory->size]), z->next_out, (z->total_out - record->member_memory->size));
+      record->member_memory->memory = realloc (record->member_memory->memory,
+                                               z->total_out);
+      memcpy (&(record->member_memory->memory[record->member_memory->size]),
+              z->next_out, (z->total_out - record->member_memory->size));
       record->member_memory->size = z->total_out;
     }
   else
     {
-      fwrite (z->next_out, 1, (z->total_out - record->member_size), record->member_file);
+      fwrite (z->next_out, 1, (z->total_out - record->member_size),
+              record->member_file);
     }
   record->member_size = z->total_out;
 }
+
+/*
+ * Inflated the downloaded WARC member to either a file, or memory structure if
+ * the --memory-only option was used.
+ * 
+ * Takes as input a pointer to the whole record structure the contains the
+ * compressed WARC member.
+ * 
+ * Returns a true if the inflation process was successful, and false otherwise.
+ */
 
 bool
 inflate_record_member (Record *record)
 {
   z_stream z;
   gzmInflateInit (&z);
-  z.next_in = calloc (options.input_buffer + 1, sizeof (Bytef)); //extra byte for the null terminator
+  //extra byte for the null terminator
+  z.next_in = calloc (options.input_buffer + 1, sizeof (Bytef));
   z.next_out = calloc (options.output_buffer + 1, sizeof (Bytef));
-
-  inflateReset2 (&z, 31);
 
   if (options.memory)
     {
-      FILE* outf = fmemopen (record->compressed_member_memory->memory, record->compressed_member_memory->size, "r");
+      FILE* outf = fmemopen (record->compressed_member_memory->memory,
+                             record->compressed_member_memory->size, "r");
 
-      record->member_memory = (MemoryStruct *) malloc (sizeof (MemoryStruct));
+      record->member_memory = (MemoryStruct*) calloc (1, sizeof (MemoryStruct));
       record->member_memory->size = 0;
-      record->member_memory->memory = malloc (1);
+      record->member_memory->memory = calloc (1, sizeof (char));
 
       inflateMember (&z, outf, options.input_buffer, options.output_buffer
                      , process_chunk, record);
@@ -432,6 +507,7 @@ inflate_record_member (Record *record)
         fprintf (stderr, "Error: Could not close temp file.");
       record->compressed_member_file = NULL;
     }
+  inflateEnd (&z);
   free (z.next_in);
   free (z.next_out);
   return true;
@@ -445,17 +521,20 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 
   if (options.memory)
     {
-      record->compressed_member_memory->memory = realloc (record->compressed_member_memory->memory, record->compressed_member_memory->size + realsize + 1);
+      record->compressed_member_memory->memory =
+              realloc (record->compressed_member_memory->memory,
+                       record->compressed_member_memory->size + realsize + 1);
+
       if (record->compressed_member_memory->memory == NULL)
         {
           /* out of memory! */
           printf ("not enough memory (realloc returned NULL)\n");
           return 0;
         }
-
-      memcpy (&(record->compressed_member_memory->memory[record->compressed_member_memory->size]), contents, realsize);
+      size_t size = record->compressed_member_memory->size;
+      memcpy (&(record->compressed_member_memory->memory[size]),
+              contents, realsize);
       record->compressed_member_memory->size += realsize;
-      record->compressed_member_memory->memory[record->compressed_member_memory->size] = 0;
     }
   else
     {
@@ -472,13 +551,22 @@ http_download_file (char *url, Record *record)
   CURL *curl_handle;
   CURLcode res;
 
-  char* range = (char*) malloc (50);
-  sprintf (range, "%zu-%zu", record->offset, record->offset + record->length - 1);
+  char* range = (char*) calloc (50, sizeof (char));
+  snprintf (range, 50, "%zu-%zu", record->offset,
+            record->offset + record->length - 1);
 
   if (options.memory)
     {
-      record->compressed_member_memory = (MemoryStruct *) malloc (sizeof (MemoryStruct));
-      record->compressed_member_memory->memory = (char*) malloc (1); /* will be grown as needed by the realloc above */
+      record->compressed_member_memory =
+              (MemoryStruct *) calloc (1, sizeof (MemoryStruct));
+
+      /*
+       *******************************************
+       * Will be grown as needed by the realloc. *
+       *******************************************
+       */
+      record->compressed_member_memory->memory =
+              (char*) calloc (1, sizeof (char));
       record->compressed_member_memory->size = 0;
     }
   else
@@ -551,16 +639,16 @@ download_record (Record *record, MYSQL *conn, size_t *lineNo)
   if (url == NULL)
     {
       if (!options.quite && options.verbose)
-        fprintf (stderr, "Error: Could not find a server for the processed \
-record in line %ld.\n", *lineNo);
+        fprintf (stderr, "Error: Could not find a server for the processed "
+                 "record in line %ld.\n", *lineNo);
       destroy_record (record);
       return false;
     }
 
   /*
-   *************************************
+   ***************************************
    * Get the member from the HTTP server *
-   *************************************
+   ***************************************
    */
   start = clock ();
   if (!http_download_file (url, record))
@@ -572,21 +660,93 @@ record in line %ld.\n", *lineNo);
   if (record->member_size == 0)
     {
       if (!options.quite && options.verbose)
-        fprintf (stderr, "Error: Could not download the member from the \
-HTTP server for the processed record in line %ld.\n", *lineNo);
+        fprintf (stderr, "Error: Could not download the member from the "
+                 "HTTP server for the processed record in line %ld.\n",
+                 *lineNo);
       destroy_record (record);
       return false;
     }
   return true;
 }
 
+/*
+ *******************
+ * Display version *
+ *******************
+ */
+void
+version ()
+{
+  printf ("GNU warccollres 0.1\n"
+          " * Copyright (C) 2014 Bibliotheca Alexandrina\n");
+}
+
+/*
+ *****************
+ * Display usage *
+ *****************
+ */
+
 void
 usage ()
 {
-  fprintf (stderr, "Usage: warccollres [-i | --input <filename>] \
-[-o | --output <filename>] [-s | --db-settings <filename>] \
-[-p | --proc] [-b | --input-buffer] [-B | --output-buffer] \
-[-m | --memory-only][-q | --quite] [-v | --verbose]\n");
+  fprintf (stderr, "Usage: warccollres [-i | --input <filename>]"
+           "[-o | --output <filename>] [-s | --db-settings <filename>] "
+           "[-p | --proc] [-I | --input-buffer] [-O | --output-buffer] "
+           "[-m | --memory-only][-q | --quite] [-v | --verbose]\n");
+}
+
+/*
+ *****************
+ * Display help *
+ *****************
+ */
+
+void
+help ()
+{
+  printf ("Usage\n");
+
+  printf ("\tUsage: warccollres [-i | --input <filename>]"
+          "[-o | --output <filename>] [-s | --db-settings <filename>] "
+          "[-p | --proc] [-I | --input-buffer] [-O | --output-buffer] "
+          "[-m | --memory-only][-q | --quite] [-v | --verbose]\n\n");
+
+  printf ("Options\n");
+
+  printf ("\t-i, --input=FILE\n");
+  printf ("\t\tPath to digests manifest file.\n\n");
+
+  printf ("\t-o, --output=FILE\n");
+  printf ("\t\tPath to extended digests manifest file.\n\n");
+
+  printf ("\t-o, --db-settings=FILE\n");
+  printf ("\t\tPath to the database settings file.\n\n");
+
+  printf ("\t-I, --input-buffer=NUMBER\n");
+  printf ("\t\tsize of the buffer used to read/write compressed temp "
+          "files.\n\n");
+
+  printf ("\t-O, --output-buffer=NUMBER\n");
+  printf ("\t\tsize of the buffer used to read/write inflated temp files.\n\n");
+
+  printf ("\t-p, --proc\n");
+  printf ("\t\tResolve the reference of duplicate WARC members.\n\n");
+
+  printf ("\t-m, --memory-only\n");
+  printf ("\t\tPerform all processing in memory only.\n");
+
+  printf ("\t-v, --verbose\n");
+  printf ("\t\tVerbose mode. Print more messages about the process.\n\n");
+
+  printf ("\t-q, --quite\n");
+  printf ("\t\tQuite mode. Do not print any messages about the process.\n\n");
+
+  printf ("\t-V, --version\n");
+  printf ("\t\tPrint the version.\n\n");
+
+  printf ("\t-h, --help\n");
+  printf ("\t\tPrint this help message.\n\n");
 }
 
 int
@@ -605,7 +765,7 @@ process_args (int argc, char** argv)
 
   int opt, option_index = 0;
 
-  while ((opt = getopt_long (argc, argv, ":i:o:s:I:O:pqvm",
+  while ((opt = getopt_long (argc, argv, ":i:o:s:I:O:pqvmh",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -613,7 +773,7 @@ process_args (int argc, char** argv)
         case 'i':
           if (strlen (optarg) > 0)
             {
-              options.iFile = malloc (strlen (optarg) + 1);
+              options.iFile = calloc (strlen (optarg) + 1, sizeof (char));
               strcpy (options.iFile, optarg);
             }
           else
@@ -624,7 +784,7 @@ process_args (int argc, char** argv)
         case 'o':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              options.oFile = malloc (strlen (optarg) + 1);
+              options.oFile = calloc (strlen (optarg) + 1, sizeof (char));
               strcpy (options.oFile, optarg);
             }
           else
@@ -635,12 +795,13 @@ process_args (int argc, char** argv)
         case 's':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              options.dbFile = malloc (strlen (optarg) + 1);
+              options.dbFile = calloc (strlen (optarg) + 1, sizeof (char));
               strcpy (options.dbFile, optarg);
             }
           else
             {
-              fprintf (stderr, "Error: No database settings file was specified.\n");
+              fprintf (stderr, "Error: No database settings file was "
+                       "specified.\n");
             }
           break;
         case 'I':
@@ -694,17 +855,21 @@ process_args (int argc, char** argv)
         case 'p':
           options.proc = true;
           break;
+        case 'm':
+          options.memory = true;
+          break;
+
         case 'q':
           options.quite = true;
           break;
         case 'v':
           options.verbose = true;
           break;
-        case 'm':
-          options.memory = true;
-          break;
+        case 'V':
+          version ();
+          exit (EXIT_SUCCESS);
         case 'h':
-          usage ();
+          help ();
           exit (EXIT_SUCCESS);
         default: /* '?' */
           usage ();
@@ -760,8 +925,8 @@ main (int argc, char** argv)
         }
       else
         {
-          fprintf (stderr, "Error: Could not open the database's settings file.\
-\nAborting...");
+          fprintf (stderr, "Error: Could not open the database's settings file."
+                   "\nAborting...");
           return (EXIT_FAILURE);
         }
       free (options.dbFile);
@@ -837,11 +1002,14 @@ main (int argc, char** argv)
                     {
                       start = clock ();
 
-                      if ((options.memory && compare_records (collRec, currentRec)) || \
-                          (!options.memory && compare_records_file (collRec, currentRec)))
+                      if ((options.memory &&
+                           compare_records (collRec, currentRec)) ||
+                          (!options.memory &&
+                           compare_records_file (collRec, currentRec)))
                         {
                           end = clock ();
-                          compareTime += ((double) (end - start)) / CLOCKS_PER_SEC;
+                          compareTime += ((double) (end - start)) /
+                                  CLOCKS_PER_SEC;
                           if (!options.quite && options.verbose)
                             printf ("Duplicate was found at line %ld.\n"
                                     , lineNo);
@@ -864,7 +1032,8 @@ main (int argc, char** argv)
                           else
                             {
                               if (fclose (currentRec->member_file) != 0)
-                                fprintf (stderr, "Error: Could not close temp file.");
+                                fprintf (stderr, "Error: Could not close temp "
+                                         "file.");
                               currentRec->member_file = NULL;
                             }
                           totalDup++;
@@ -891,7 +1060,8 @@ main (int argc, char** argv)
               else
                 {
                   if (!options.quite && options.verbose)
-                    printf ("Processing new hash cluster at line %ld.\n", lineNo);
+                    printf ("Processing new hash cluster at line %ld.\n",
+                            lineNo);
                   dump_hash_cluster (output, recList);
                   /* Destroying the records of the old hash cluster */
                   destroy_record (recList);
@@ -917,6 +1087,7 @@ main (int argc, char** argv)
       destroy_record (recList);
       recList = NULL;
       mysql_close (conn);
+      mysql_library_end ();
       fclose (input);
       fclose (output);
       if (!quite)
@@ -924,9 +1095,10 @@ main (int argc, char** argv)
           size_t total = totalRecs + totalSkip;
           size_t unique = totalRecs - (totalDup + totalColls);
 
-          printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%%).\
-\n\n  processed:%ld (%.2f%%)\n    unique: %ld (%.2f%%).\
-\n    duplicate: %ld (%.2f%%).\n    collision: %ld (%.2f%%).\n"
+          printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%%)."
+                  "\n\n  processed:%ld (%.2f%%)\n    unique: %ld (%.2f%%)."
+                  "\n    duplicate: %ld (%.2f%%).\n    collision: %ld (%.2f%%)."
+                  "\n"
                   , total
                   , totalSkip
                   , totalSkip * 100.0 / total
@@ -938,8 +1110,8 @@ main (int argc, char** argv)
                   , totalDup * 100.0 / totalRecs
                   , totalColls
                   , totalColls * 100.0 / totalRecs);
-          printf ("Processing time: %f seconds\nNetwork time: %f seconds\n\
-Database time: %f seconds\n"
+          printf ("Processing time: %f seconds\nNetwork time: %f seconds\n"
+                  "Database time: %f seconds\n"
                   , compareTime
                   , downloadTime
                   , databaseTime);

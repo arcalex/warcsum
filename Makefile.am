@@ -8,7 +8,8 @@ warcsum_SOURCES = \
 warcsum_CFLAGS= -Wl,-rpath -Wl,LIBDIR -lcrypto -lgzmulti
 
  man_MANS = \
-  warcsum.1
+  warcsum.1 \
+  warccollres.1
 
 warccollres_SOURCES = \
   warccollres.c

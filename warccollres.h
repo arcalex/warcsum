@@ -13,6 +13,50 @@
  * 
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * warccollres is part of the warcsum project.
+ *
+ * waccollres uses the digests manifest generated from warcsum sorted on the
+ * digests column, and compares the content of the WARC members with the same
+ * digest byte-by-byte to decide whether they are duplicates or collisions from
+ * the hashing alogrithm that was used.
+ * 
+ * warccollres fetches the compressed WARC members from HTTP server(s), and the
+ * URL for each WARC file is fetched from mySQL database containing the WARC
+ * file name and the URL to download that file.
+ * 
+ * The digests manifest file contains following data:
+ *     1. Warc file name
+ *     2. Offset (compressed)
+ *     3. End (compressed)
+ *     4. URI
+ *     5. Date
+ *     6. Digest
+ * 
+ * The extended digest file contains following data:
+ *     1. Warc file name
+ *     2. Offset (compressed)
+ *     3. End (compressed)
+ *     4. URI
+ *     5. Date
+ *     6. Digest
+ *     7. Digest extension
+ * 
+ * If the --proc was used, the extended digests manifest file will include:
+ *     8. Copy number
+ *     9. Reference member URI
+ *     10. Reference member date
+ * 
+ * The digests manifest line should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * 
+ * The extended digests manifest line should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * <hash extension>
+ * 
+ * The extended digests manifest with additional fields should be in the format:
+ * <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+ * <hash extension> <copy number> <reference uri> <reference date>
  */
 
 #ifndef WARCCOLLRES_H
@@ -25,6 +69,7 @@
 #include <mysql/mysql.h>
 #include <curl/curl.h>
 #include <gzmulti.h>
+#include <zlib.h>
 #include <time.h>
 #include <errno.h>
 
@@ -57,6 +102,7 @@ static struct option long_options[] = {
     {"memory-only", no_argument, 0, 'm'},
     {"quite", no_argument, 0, 'q'},
     {"verbose", no_argument, 0, 'v'},
+    {"version", no_argument, 0, 'V'},
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
 };
@@ -73,6 +119,15 @@ typedef struct Record {
     struct Record *next, *next_collision;
     FILE *member_file, *compressed_member_file;
 } Record;
+
+void
+version();
+
+void
+usage();
+
+void
+help();
 
 int
 process_args(int argc, char** argv);

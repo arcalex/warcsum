@@ -790,8 +790,14 @@ process_chunk (z_stream* z, int chunk, void* vp)
         {
           ws->response = 1;
         }
+      
+      //skip member if empty and argument process empty not set     
+      if (ws->response && (next_out_length - read_bytes <= 4) && ws->args.skip_empty)
+        {
+          ws->response = -1;
+        }
 
-      if (ws->response)
+      if (ws->response == 1)
         {
           if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
             {
@@ -937,7 +943,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
   ws->effective_out = ws->args.real_out;
 
 
-  //  fseek (f_in, 35755203, SEEK_SET);
+  //  fseek (f_in, 97285811, SEEK_SET);
   // process member by member from the file, till end of file
   do
     {
@@ -1105,6 +1111,7 @@ process_args (int argc, char **argv, struct cli_args* args)
   args->verbose = 0;
   args->hash_code = 2;
   args->append = 0;
+  args->skip_empty = 0;
   args->recursive = 0;
   strcpy (args->hash_char, "SHA1");
   strcpy (args->f_input, "");
@@ -1120,6 +1127,7 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"force-recalc", no_argument, 0, 'f'},
+    {"skip-empty", no_argument, 0, 's'},
     {"input-buffer", required_argument, 0, 'I'},
     {"output-buffer", required_argument, 0, 'O'},
     {"append", no_argument, 0, 'a'},
@@ -1131,13 +1139,16 @@ process_args (int argc, char **argv, struct cli_args* args)
   int option_index = 0;
   int length;
 
-  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVr",
+  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVrs",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
         {
         case 'i':
           strcpy (args->f_input, optarg);
+          break;
+        case 'o':
+          strcpy (args->f_output, optarg);
           break;
         case 'H':
           strcpy (args->hash_char, optarg);
@@ -1164,11 +1175,11 @@ process_args (int argc, char **argv, struct cli_args* args)
         case 'f':
           args->force_recalculate_digest = 1;
           break;
-        case 'o':
-          strcpy (args->f_output, optarg);
-          break;
         case 'v':
           args->verbose = 1;
+          break;
+        case 's':
+          args->skip_empty = 1;
           break;
         case 'I':
           length = strlen (optarg);

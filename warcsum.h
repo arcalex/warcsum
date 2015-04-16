@@ -80,6 +80,7 @@ struct cli_args
   int verbose;
   int recursive;
   int hash_code;
+  int skip_empty;
   char hash_char[KEY_LENGTH];
   char f_input[FILE_NAME_LENGTH];
   char f_output[FILE_NAME_LENGTH];

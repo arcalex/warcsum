@@ -85,6 +85,9 @@ hash_init (void** hash_ctx, int hash)
     case 3:
       *hash_ctx = calloc (1, sizeof (SHA256_CTX));
       return SHA256_Init ((SHA256_CTX*) * hash_ctx);
+    case 4:
+      *hash_ctx = calloc (1, sizeof (SHA512_CTX));
+      return SHA512_Init ((SHA512_CTX*) * hash_ctx);
     default:
       fprintf (stderr, "Unknown hash algorithm: %d!!\n"
                "How did you get here?!\n\n", hash);
@@ -117,6 +120,8 @@ hash_update (unsigned char* buffer, int hash,
       return SHA1_Update ((SHA_CTX*) hash_ctx, buffer, input_length);
     case 3: // calculate sha256
       return SHA256_Update ((SHA256_CTX*) hash_ctx, buffer, input_length);
+    case 4: // calculate sha256
+      return SHA512_Update ((SHA512_CTX*) hash_ctx, buffer, input_length);
     default:
       fprintf (stderr, "Unknown hash algorithm: %d!!\n"
                "How did you get here?!\n\n", hash);
@@ -190,6 +195,21 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       if (args.verbose)
         {
           printf ("Hash: SHA256 \n");
+        }
+      computed_digest[j] = '\0';
+      break;
+    case 4:
+      ret = SHA512_Final (result, (SHA512_CTX*) hash_ctx);
+      for (i = 0; i < SHA512_DIGEST_LENGTH; i++, j += 2)
+        {
+          char temp[3];
+          snprintf (temp, sizeof (temp), "%02x", result[i]);
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
+        }
+      if (args.verbose)
+        {
+          printf ("Hash: SHA512 \n");
         }
       computed_digest[j] = '\0';
       break;
@@ -796,7 +816,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
         {
           ws->response = 0;
         }
-      
+
       if (ws->response)
         {
           if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
@@ -1164,11 +1184,15 @@ process_args (int argc, char **argv, struct cli_args* args)
             {
               args->hash_code = 3;
             }
+          else if (!strcmp_case_insensitive (args->hash_char, "sha512"))
+            {
+              args->hash_code = 4;
+            }
           else
             {
               fprintf (stderr,
                        "Invalid argument %s for hash. "
-                       "Options: md5, sha1, sha256 \n", args->hash_char);
+                       "Options: md5, sha1, sha256, sha512\n", args->hash_char);
               exit (EXIT_FAILURE);
             }
           break;
@@ -1293,7 +1317,7 @@ help ()
   printf ("\n");
   printf ("\t-H, --hash=HASHING_ALGORITHM\n");
   printf ("\t\tHashing algorithm to be used for hashing the warc member "
-          "payload.  Possible options are md5, sha1 or sha256. "
+          "payload.  Possible options are md5, sha1, sha256 or sha512. "
           "The default option is sha1.\n");
   printf ("\n");
   printf ("\t-f, --force\n");

@@ -163,7 +163,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: MD5 \n");
         }
@@ -178,7 +178,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: SHA1 \n");
         }
@@ -192,7 +192,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: SHA256 \n");
         }
@@ -207,7 +207,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: SHA512 \n");
         }
@@ -365,7 +365,7 @@ process_warcheader (z_stream *z, void* vp)
   if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER)
       && attrs->effective_out - z->avail_out > strlen (WARC_HEADER))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("Not a WARC member!!\n");
         }
@@ -418,7 +418,7 @@ process_warcheader (z_stream *z, void* vp)
       if (!strcmp_case_insensitive (key, WARC_TYPE))
         {
           strcpy (type, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC type: %s \n", value);
             }
@@ -446,7 +446,7 @@ process_warcheader (z_stream *z, void* vp)
             }
 
 
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC payload digest: %s:%s \n", precomputed_hash,
                       precomputed_digest);
@@ -456,7 +456,7 @@ process_warcheader (z_stream *z, void* vp)
       else if (!strcmp_case_insensitive (key, WARC_DATE))
         {
           strcpy (attrs->DATE, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC date: %s \n", value);
             }
@@ -464,7 +464,7 @@ process_warcheader (z_stream *z, void* vp)
       else if (!strcmp_case_insensitive (key, WARC_TARGET_URI))
         {
           strcpy (attrs->URI, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC target uri: %s \n", value);
             }
@@ -477,7 +477,7 @@ process_warcheader (z_stream *z, void* vp)
             {
               memcpy (content_type, pch, strlen (pch));
               content_type[strlen (pch)] = '\0';
-              if (attrs->args.verbose)
+              if (attrs->args.verbose == 2)
                 {
                   printf ("Content-Type: %s \n", content_type);
                 }
@@ -508,7 +508,7 @@ process_warcheader (z_stream *z, void* vp)
   if (strcmp_case_insensitive (type, "response")
       && strcmp_case_insensitive (type, ""))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("WARC-Type is not \"response\" \n");
         }
@@ -525,7 +525,7 @@ process_warcheader (z_stream *z, void* vp)
   if (strcmp_case_insensitive (content_type, "application/http")
       && strcmp_case_insensitive (type, ""))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("Content-type is not \"application/http\" \n");
         }
@@ -553,7 +553,7 @@ process_warcheader (z_stream *z, void* vp)
         }
       else
         {
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("Stored digest:\t%s:%s \n",
                       attrs->args.hash_char, attrs->fixed_digest);
@@ -841,7 +841,7 @@ int
 process_member (FILE* f_in, FILE* f_out, z_stream *z,
                 struct warcsum_struct* ws)
 {
-  if (ws->args.verbose)
+  if (ws->args.verbose == 2)
     {
       printf ("\n\n");
       printf ("OFFSET: %ld\n", ftell (f_in));
@@ -889,7 +889,7 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
                 ws->START, ws->END - ws->START, ws->URI,
                 ws->DATE, final_digest);
 
-      if (ws->args.verbose)
+      if (ws->args.verbose == 2)
         {
           printf ("%s\n", ws->manifest);
         }
@@ -911,6 +911,10 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
 int
 process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
 {
+  if (ws->args.verbose)
+    {
+      printf ("%s\n", in);
+    }
   /* Open file */
   int file_size;
   FILE* f_in;
@@ -972,7 +976,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
        */
       if (ws->need_double)
         {
-          if (ws->args.verbose)
+          if (ws->args.verbose == 2)
             {
               printf ("Chunk size not sufficient\n"
                       "Doubling chunk size\n"
@@ -1061,19 +1065,19 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
           if (!strcmp_case_insensitive (ent->d_name, ".")
               || !strcmp_case_insensitive (ent->d_name, ".."));
             // if a regular file, process it
-          else if (S_ISREG(file_stat.st_mode))
+          else if (S_ISREG (file_stat.st_mode))
             {
               process_file (full_file_path, f_out, z, ws);
             }
             // if a directory, recurse through it
-          else if (S_ISDIR(file_stat.st_mode))
+          else if (S_ISDIR (file_stat.st_mode))
             {
               // add '/' to the end of the directory path
               process_directory (full_file_path, f_out, z, ws);
             }
           else
             {
-              if (ws->args.verbose)
+              if (ws->args.verbose == 2)
                 {
                   printf ("%s is neither a regular file nor a directory!\n",
                           ent->d_name);
@@ -1205,7 +1209,7 @@ process_args (int argc, char **argv, struct cli_args* args)
           args->force_recalculate_digest = 1;
           break;
         case 'v':
-          args->verbose = 1;
+          args->verbose++;
           break;
         case 's':
           args->skip_empty = 1;

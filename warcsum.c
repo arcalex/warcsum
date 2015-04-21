@@ -1043,6 +1043,7 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
 {
   DIR *dir;
   struct dirent *ent;
+  struct stat file_stat;
   if ((dir = opendir (input_dir)) != NULL)
     {
       while ((ent = readdir (dir)) != NULL)
@@ -1052,16 +1053,20 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
           strcpy (full_file_path, input_dir);
           strcat (full_file_path, "/");
           strcat (full_file_path, ent->d_name);
+          if (stat (full_file_path, &file_stat))
+            {
+              perror ("Error processing file: ");
+            }
           // if "." or "..", skip it
           if (!strcmp_case_insensitive (ent->d_name, ".")
               || !strcmp_case_insensitive (ent->d_name, ".."));
             // if a regular file, process it
-          else if (ent->d_type == DT_REG)
+          else if (S_ISREG(file_stat.st_mode))
             {
               process_file (full_file_path, f_out, z, ws);
             }
             // if a directory, recurse through it
-          else if (ent->d_type == DT_DIR)
+          else if (S_ISDIR(file_stat.st_mode))
             {
               // add '/' to the end of the directory path
               process_directory (full_file_path, f_out, z, ws);

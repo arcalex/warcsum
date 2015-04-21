@@ -444,7 +444,10 @@ process_warcheader (z_stream *z, void* vp)
                 }
               pch = strtok (NULL, ":");
             }
-
+          if (!strcmp_case_insensitive (precomputed_hash, attrs->args.hash_char))
+            {
+              attrs->recalculate_hash = 1;
+            }
 
           if (attrs->args.verbose == 2)
             {
@@ -543,10 +546,9 @@ process_warcheader (z_stream *z, void* vp)
    * if digest is calculated and don't need to recalculate
    * then fix it to hexadecimal
    */
-  if (return_value != -1 && payload_digest_set && attrs->args.hash_code == 2
-      && !attrs->args.force_recalculate_digest)
+  if (return_value != -1 && !attrs->recalculate_hash)
     {
-      int converted = base32_to_hex (precomputed_digest, attrs->fixed_digest);
+      int converted = base32_to_hex (precomputed_digest, attrs->stored_digest);
       if (converted == -1)
         {
           return_value = -1;
@@ -556,7 +558,7 @@ process_warcheader (z_stream *z, void* vp)
           if (attrs->args.verbose == 2)
             {
               printf ("Stored digest:\t%s:%s \n",
-                      attrs->args.hash_char, attrs->fixed_digest);
+                      attrs->args.hash_char, attrs->stored_digest);
             }
         }
     }
@@ -686,7 +688,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
       if (ws->response)
         {
           // if recalculate digest
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
               /* 
                * if warc payload length is greater than 4 chars, then save the 
@@ -696,7 +698,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
                */
               if ((next_out_length - read_bytes) >= 4)
                 {
-                  hash_update (&z->next_out[read_bytes], ws->hash_algo,
+                  hash_update (&z->next_out[read_bytes], ws->computed_hash,
                                next_out_length - read_bytes - 4, ws->hash_ctx);
                   memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
                   ws->size_last_4 = 4;
@@ -722,13 +724,13 @@ process_chunk (z_stream* z, int chunk, void* vp)
            */
           if (next_out_length >= 4)
             {
-              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+              if (ws->recalculate_hash)
                 {
                   // hash last 4 bytes from previous chunk
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4, ws->hash_ctx);
                   // hash current chunk except for last 4 bytes
-                  hash_update (z->next_out, ws->hash_algo,
+                  hash_update (z->next_out, ws->computed_hash,
                                next_out_length - 4, ws->hash_ctx);
                   memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
                   ws->size_last_4 = 4;
@@ -736,13 +738,13 @@ process_chunk (z_stream* z, int chunk, void* vp)
             }
           else
             {
-              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+              if (ws->recalculate_hash)
                 {
                   // length of chars to be hashed from last_4
                   int to_be_hashed = next_out_length + ws->size_last_4 - 4;
 
                   // hash last_4[0..to_be_hashed]
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                to_be_hashed, ws->hash_ctx);
 
                   // last_4 <- (4 - next_out_length) chars of last_4 + next_out
@@ -774,16 +776,16 @@ process_chunk (z_stream* z, int chunk, void* vp)
        */
       if (ws->response) // if header is processed
         {
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
 
               if (next_out_length >= 4)
                 {
                   // hash last_4
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4, ws->hash_ctx);
                   // hash current chunk [0..(n-4)] where n is next_out_length
-                  hash_update (z->next_out, ws->hash_algo,
+                  hash_update (z->next_out, ws->computed_hash,
                                next_out_length - 4, ws->hash_ctx);
 
                 }
@@ -791,7 +793,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
                 {
                   // hash last_4[0..n] from previous chunk, 
                   // where n is next_out_length + size_last_4 - 4
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4 + next_out_length - 4,
                                ws->hash_ctx);
                 }
@@ -819,10 +821,10 @@ process_chunk (z_stream* z, int chunk, void* vp)
 
       if (ws->response)
         {
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
               // hash chunk[0..(n-4)], where n is next_out_length
-              hash_update (&z->next_out[read_bytes], ws->hash_algo,
+              hash_update (&z->next_out[read_bytes], ws->computed_hash,
                            next_out_length - read_bytes - 4, ws->hash_ctx);
             }
         }
@@ -875,19 +877,20 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
   if (ws->response) // if processed member was response
     {
       char final_digest[DIGEST_LENGTH];
+      char final_hash[HASH_LENGTH];
       // if calculated hash was chosen
-      if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+      if (ws->recalculate_hash)
         {
           strcpy (final_digest, ws->computed_digest);
         }
       else // if stored hash was chosen
         {
-          strcpy (final_digest, ws->fixed_digest);
+          strcpy (final_digest, ws->stored_digest);
         }
-
-      snprintf (ws->manifest, sizeof (ws->manifest), "%s %u %u %s %s %s\n", ws->WARCFILE_NAME,
+      strcpy (final_hash, ws->args.hash_char);
+      snprintf (ws->manifest, sizeof (ws->manifest), "%s %u %u %s %s %s:%s\n", ws->WARCFILE_NAME,
                 ws->START, ws->END - ws->START, ws->URI,
-                ws->DATE, final_digest);
+                ws->DATE, final_hash, final_digest);
 
       if (ws->args.verbose == 2)
         {
@@ -919,7 +922,6 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
   int file_size;
   FILE* f_in;
   f_in = fopen (in, "r");
-  ws->f_in = f_in;
   if (f_in == NULL)
     {
       fprintf (stderr, "Unable to open file: %s\n", in);
@@ -1011,7 +1013,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
           if (doubled)
             {
               // fseek back to start of member
-              fseek (ws->f_in, ws->START, SEEK_SET);
+              fseek (f_in, ws->START, SEEK_SET);
               reset (z, ws);
             }
           else
@@ -1104,7 +1106,7 @@ init (z_stream* z, struct warcsum_struct* ws)
   /* warcsum_struct initialization.*/
   ws->effective_in = ws->args.real_in;
   ws->effective_out = ws->args.real_out;
-  ws->hash_algo = ws->args.hash_code;
+  ws->computed_hash = ws->args.hash_code;
   ws->need_double = 0;
 }
 
@@ -1142,7 +1144,7 @@ process_args (int argc, char **argv, struct cli_args* args)
   args->append = 0;
   args->skip_empty = 0;
   args->recursive = 0;
-  strcpy (args->hash_char, "SHA1");
+  strcpy (args->hash_char, "sha1");
   strcpy (args->f_input, "");
   strcpy (args->f_output, "");
   args->real_in = 8 * 1024;

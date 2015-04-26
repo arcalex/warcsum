@@ -69,7 +69,6 @@
 #include <mysql/mysql.h>
 #include <curl/curl.h>
 #include <gzmulti.h>
-#include <zlib.h>
 #include <time.h>
 #include <errno.h>
 
@@ -77,13 +76,8 @@
 #define false 0
 #define bool _Bool
 
-bool quite = false, verbose = false;
-
-char tmpFilenameTemplate [] = "warccollres-tmp-XXXXXXXXX";
-
 static struct options {
-    bool quite;
-    bool verbose;
+    size_t verbose;
     bool memory;
     bool proc;
     
@@ -144,8 +138,8 @@ dump_hash_cluster(FILE* output, Record *recList);
 MYSQL*
 mySQL_connect(FILE *dbSet, MYSQL *conn);
 
-char*
-get_url_from_db(MYSQL *conn, char* filename);
+size_t
+get_url_from_db(MYSQL *conn, char *filename, char ***url);
 
 bool
 compare_records(Record *first, Record *second);
@@ -157,7 +151,7 @@ static size_t
 write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);
 
 bool
-http_download_file(char *url, Record *record);
+http_download_file(char **url, size_t url_count, Record *record);
 
 bool
 download_record(Record *record, MYSQL *conn, size_t *lineNo);

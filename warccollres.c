@@ -227,8 +227,8 @@ mySQL_connect (FILE *dbSet, MYSQL * conn)
   return conn;
 }
 
-char*
-get_url_from_db (MYSQL *conn, char* filename)
+size_t
+get_url_from_db (MYSQL *conn, char *filename, char ***url)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
@@ -247,21 +247,36 @@ get_url_from_db (MYSQL *conn, char* filename)
       exit (1);
     }
   free (query);
-  res = mysql_use_result (conn);
-  /* Get the result */
-  row = mysql_fetch_row (res);
-  char *url;
-  if (row[0] != NULL)
+
+  /*
+   *  Get the result.
+   */
+  res = mysql_store_result (conn);
+
+  /*
+   *  Get number of rows in the result.
+   */
+  int res_count = mysql_num_rows (res);
+
+  *url = calloc (res_count, sizeof (char*));
+
+  int i;
+
+  for (i = 0; i < res_count; i++)
     {
-      url = calloc (strlen (row[0]), sizeof (char));
-      strcpy (url, row[0]);
-    }
-  else
-    {
-      url = NULL;
+      row = mysql_fetch_row (res);
+      if (row && row[0] != NULL)
+        {
+          (*url)[i] = calloc (strlen (row[0]), sizeof (char));
+          strcpy ((*url)[i], row[0]);
+        }
+      else
+        {
+          (*url)[i] = NULL;
+        }
     }
   mysql_free_result (res);
-  return url;
+  return res_count;
 }
 
 bool
@@ -471,7 +486,7 @@ inflate_record_member (Record *record)
       FILE* outf = fmemopen (record->compressed_member_memory->memory,
                              record->compressed_member_memory->size, "r");
 
-      record->member_memory = (MemoryStruct*) calloc (1, sizeof (MemoryStruct));
+      record->member_memory = (MemoryStruct *) malloc (sizeof (MemoryStruct));
       record->member_memory->size = 0;
       record->member_memory->memory = calloc (1, sizeof (char));
 
@@ -535,6 +550,7 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
       memcpy (&(record->compressed_member_memory->memory[size]),
               contents, realsize);
       record->compressed_member_memory->size += realsize;
+      //record->compressed_member_memory->memory[record->compressed_member_memory->size] = 0;
     }
   else
     {
@@ -546,7 +562,7 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 bool
-http_download_file (char *url, Record *record)
+http_download_file (char **url, size_t url_count, Record *record)
 {
   CURL *curl_handle;
   CURLcode res;
@@ -586,9 +602,6 @@ http_download_file (char *url, Record *record)
   /* init the curl session */
   curl_handle = curl_easy_init ();
 
-  /* specify URL to get */
-  curl_easy_setopt (curl_handle, CURLOPT_URL, url);
-
   /* send all data to this function  */
   curl_easy_setopt (curl_handle, CURLOPT_WRITEFUNCTION, write_memory_callback);
 
@@ -597,10 +610,32 @@ http_download_file (char *url, Record *record)
 
   curl_easy_setopt (curl_handle, CURLOPT_RANGE, range);
 
-  /* get it! */
-  res = curl_easy_perform (curl_handle);
+  curl_easy_setopt (curl_handle, CURLOPT_FAILONERROR, 1);
+
+  bool downloaded = false;
+
+  int i;
+
+  for (i = 0; i < url_count; i++)
+    {
+      /* specify URL to get */
+      curl_easy_setopt (curl_handle, CURLOPT_URL, url[i]);
+      /* get it! */
+      res = curl_easy_perform (curl_handle);
+
+      /*
+       * Check if there was any error.
+       */
+      if (res == CURLE_OK)
+        {
+          downloaded = true;
+          break;
+        }
+    }
+
+
   /* check for errors */
-  if (res != CURLE_OK)
+  if (!downloaded)
     {
       fprintf (stderr, "curl_easy_perform() failed: %s\n",
                curl_easy_strerror (res));
@@ -631,14 +666,15 @@ download_record (Record *record, MYSQL *conn, size_t *lineNo)
    * Obtain the URL where the file is located from the database *
    **************************************************************
    */
-  char *url;
+  char **url = NULL;
+  size_t url_count = 0;
   start = clock ();
-  url = get_url_from_db (conn, record->filename);
+  url_count = get_url_from_db (conn, record->filename, &url);
   end = clock ();
   databaseTime += ((double) (end - start)) / CLOCKS_PER_SEC;
   if (url == NULL)
     {
-      if (!options.quite && options.verbose)
+      if (!options.verbose)
         fprintf (stderr, "Error: Could not find a server for the processed "
                  "record in line %ld.\n", *lineNo);
       destroy_record (record);
@@ -651,7 +687,7 @@ download_record (Record *record, MYSQL *conn, size_t *lineNo)
    ***************************************
    */
   start = clock ();
-  if (!http_download_file (url, record))
+  if (!http_download_file (url, url_count, record))
     return false;
   end = clock ();
 
@@ -659,7 +695,7 @@ download_record (Record *record, MYSQL *conn, size_t *lineNo)
   free (url);
   if (record->member_size == 0)
     {
-      if (!options.quite && options.verbose)
+      if (!options.verbose)
         fprintf (stderr, "Error: Could not download the member from the "
                  "HTTP server for the processed record in line %ld.\n",
                  *lineNo);
@@ -752,8 +788,7 @@ help ()
 int
 process_args (int argc, char** argv)
 {
-  options.quite = false;
-  options.verbose = false;
+  options.verbose = 1;
   options.memory = false;
   options.proc = false;
   options.iFile = NULL;
@@ -765,7 +800,7 @@ process_args (int argc, char** argv)
 
   int opt, option_index = 0;
 
-  while ((opt = getopt_long (argc, argv, ":i:o:s:I:O:pqvmh",
+  while ((opt = getopt_long (argc, argv, ":i:o:s:I:O:pqvm",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -860,10 +895,11 @@ process_args (int argc, char** argv)
           break;
 
         case 'q':
-          options.quite = true;
+          options.verbose = 0;
           break;
         case 'v':
-          options.verbose = true;
+          if (options.verbose)
+            options.verbose++;
           break;
         case 'V':
           version ();
@@ -1010,7 +1046,7 @@ main (int argc, char** argv)
                           end = clock ();
                           compareTime += ((double) (end - start)) /
                                   CLOCKS_PER_SEC;
-                          if (!options.quite && options.verbose)
+                          if (options.verbose > 1)
                             printf ("Duplicate was found at line %ld.\n"
                                     , lineNo);
                           /* Adding the current record to the list */
@@ -1046,7 +1082,7 @@ main (int argc, char** argv)
                     }
                   if (!exist)
                     {
-                      if (!options.quite && options.verbose)
+                      if (!options.verbose)
                         printf ("Collision was detected at line %ld.\n"
                                 , lineNo);
                       /* Adding the record to the list of collisions */
@@ -1059,7 +1095,7 @@ main (int argc, char** argv)
                 }
               else
                 {
-                  if (!options.quite && options.verbose)
+                  if (options.verbose > 2)
                     printf ("Processing new hash cluster at line %ld.\n",
                             lineNo);
                   dump_hash_cluster (output, recList);
@@ -1079,7 +1115,7 @@ main (int argc, char** argv)
       if (line != NULL)
         free (line);
       /* Cleaning up after the remaining hash cluster */
-      if (!options.quite && options.verbose)
+      if (!options.verbose)
         printf ("Cleaning up...\n");
       dump_hash_cluster (output, recList);
       currentHash = NULL;
@@ -1090,7 +1126,7 @@ main (int argc, char** argv)
       mysql_library_end ();
       fclose (input);
       fclose (output);
-      if (!quite)
+      if (!options.verbose)
         {
           size_t total = totalRecs + totalSkip;
           size_t unique = totalRecs - (totalDup + totalColls);

@@ -85,6 +85,9 @@ hash_init (void** hash_ctx, int hash)
     case 3:
       *hash_ctx = calloc (1, sizeof (SHA256_CTX));
       return SHA256_Init ((SHA256_CTX*) * hash_ctx);
+    case 4:
+      *hash_ctx = calloc (1, sizeof (SHA512_CTX));
+      return SHA512_Init ((SHA512_CTX*) * hash_ctx);
     default:
       fprintf (stderr, "Unknown hash algorithm: %d!!\n"
                "How did you get here?!\n\n", hash);
@@ -108,7 +111,7 @@ hash_update (unsigned char* buffer, int hash,
   time_t now_hash;
   time (&now_hash);
   /* END OF TIME */
-
+  input_length = input_length < 0 ? 0 : input_length;
   switch (hash)
     {
     case 1: // calculate md5
@@ -117,6 +120,8 @@ hash_update (unsigned char* buffer, int hash,
       return SHA1_Update ((SHA_CTX*) hash_ctx, buffer, input_length);
     case 3: // calculate sha256
       return SHA256_Update ((SHA256_CTX*) hash_ctx, buffer, input_length);
+    case 4: // calculate sha256
+      return SHA512_Update ((SHA512_CTX*) hash_ctx, buffer, input_length);
     default:
       fprintf (stderr, "Unknown hash algorithm: %d!!\n"
                "How did you get here?!\n\n", hash);
@@ -158,7 +163,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: MD5 \n");
         }
@@ -173,7 +178,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j + 1] = temp[1];
         }
       computed_digest[j] = '\0';
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: SHA1 \n");
         }
@@ -187,9 +192,24 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
           computed_digest[j] = temp[0];
           computed_digest[j + 1] = temp[1];
         }
-      if (args.verbose)
+      if (args.verbose == 2)
         {
           printf ("Hash: SHA256 \n");
+        }
+      computed_digest[j] = '\0';
+      break;
+    case 4:
+      ret = SHA512_Final (result, (SHA512_CTX*) hash_ctx);
+      for (i = 0; i < SHA512_DIGEST_LENGTH; i++, j += 2)
+        {
+          char temp[3];
+          snprintf (temp, sizeof (temp), "%02x", result[i]);
+          computed_digest[j] = temp[0];
+          computed_digest[j + 1] = temp[1];
+        }
+      if (args.verbose == 2)
+        {
+          printf ("Hash: SHA512 \n");
         }
       computed_digest[j] = '\0';
       break;
@@ -345,7 +365,7 @@ process_warcheader (z_stream *z, void* vp)
   if (str != NULL && strcmp_case_insensitive (str, WARC_HEADER)
       && attrs->effective_out - z->avail_out > strlen (WARC_HEADER))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("Not a WARC member!!\n");
         }
@@ -398,7 +418,7 @@ process_warcheader (z_stream *z, void* vp)
       if (!strcmp_case_insensitive (key, WARC_TYPE))
         {
           strcpy (type, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC type: %s \n", value);
             }
@@ -424,9 +444,12 @@ process_warcheader (z_stream *z, void* vp)
                 }
               pch = strtok (NULL, ":");
             }
+          if (!strcmp_case_insensitive (precomputed_hash, attrs->args.hash_char))
+            {
+              attrs->recalculate_hash = 1;
+            }
 
-
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC payload digest: %s:%s \n", precomputed_hash,
                       precomputed_digest);
@@ -436,7 +459,7 @@ process_warcheader (z_stream *z, void* vp)
       else if (!strcmp_case_insensitive (key, WARC_DATE))
         {
           strcpy (attrs->DATE, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC date: %s \n", value);
             }
@@ -444,7 +467,7 @@ process_warcheader (z_stream *z, void* vp)
       else if (!strcmp_case_insensitive (key, WARC_TARGET_URI))
         {
           strcpy (attrs->URI, value);
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("WARC target uri: %s \n", value);
             }
@@ -457,7 +480,7 @@ process_warcheader (z_stream *z, void* vp)
             {
               memcpy (content_type, pch, strlen (pch));
               content_type[strlen (pch)] = '\0';
-              if (attrs->args.verbose)
+              if (attrs->args.verbose == 2)
                 {
                   printf ("Content-Type: %s \n", content_type);
                 }
@@ -488,7 +511,7 @@ process_warcheader (z_stream *z, void* vp)
   if (strcmp_case_insensitive (type, "response")
       && strcmp_case_insensitive (type, ""))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("WARC-Type is not \"response\" \n");
         }
@@ -505,7 +528,7 @@ process_warcheader (z_stream *z, void* vp)
   if (strcmp_case_insensitive (content_type, "application/http")
       && strcmp_case_insensitive (type, ""))
     {
-      if (attrs->args.verbose)
+      if (attrs->args.verbose == 2)
         {
           printf ("Content-type is not \"application/http\" \n");
         }
@@ -523,20 +546,19 @@ process_warcheader (z_stream *z, void* vp)
    * if digest is calculated and don't need to recalculate
    * then fix it to hexadecimal
    */
-  if (return_value != -1 && payload_digest_set && attrs->args.hash_code == 2
-      && !attrs->args.force_recalculate_digest)
+  if (return_value != -1 && !attrs->recalculate_hash)
     {
-      int converted = base32_to_hex (precomputed_digest, attrs->fixed_digest);
+      int converted = base32_to_hex (precomputed_digest, attrs->stored_digest);
       if (converted == -1)
         {
           return_value = -1;
         }
       else
         {
-          if (attrs->args.verbose)
+          if (attrs->args.verbose == 2)
             {
               printf ("Stored digest:\t%s:%s \n",
-                      attrs->args.hash_char, attrs->fixed_digest);
+                      attrs->args.hash_char, attrs->stored_digest);
             }
         }
     }
@@ -666,7 +688,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
       if (ws->response)
         {
           // if recalculate digest
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
               /* 
                * if warc payload length is greater than 4 chars, then save the 
@@ -676,7 +698,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
                */
               if ((next_out_length - read_bytes) >= 4)
                 {
-                  hash_update (&z->next_out[read_bytes], ws->hash_algo,
+                  hash_update (&z->next_out[read_bytes], ws->computed_hash,
                                next_out_length - read_bytes - 4, ws->hash_ctx);
                   memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
                   ws->size_last_4 = 4;
@@ -702,13 +724,13 @@ process_chunk (z_stream* z, int chunk, void* vp)
            */
           if (next_out_length >= 4)
             {
-              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+              if (ws->recalculate_hash)
                 {
                   // hash last 4 bytes from previous chunk
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4, ws->hash_ctx);
                   // hash current chunk except for last 4 bytes
-                  hash_update (z->next_out, ws->hash_algo,
+                  hash_update (z->next_out, ws->computed_hash,
                                next_out_length - 4, ws->hash_ctx);
                   memcpy (ws->last_4, &z->next_out[next_out_length - 4], 4);
                   ws->size_last_4 = 4;
@@ -716,13 +738,13 @@ process_chunk (z_stream* z, int chunk, void* vp)
             }
           else
             {
-              if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+              if (ws->recalculate_hash)
                 {
                   // length of chars to be hashed from last_4
                   int to_be_hashed = next_out_length + ws->size_last_4 - 4;
 
                   // hash last_4[0..to_be_hashed]
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                to_be_hashed, ws->hash_ctx);
 
                   // last_4 <- (4 - next_out_length) chars of last_4 + next_out
@@ -754,16 +776,16 @@ process_chunk (z_stream* z, int chunk, void* vp)
        */
       if (ws->response) // if header is processed
         {
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
 
               if (next_out_length >= 4)
                 {
                   // hash last_4
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4, ws->hash_ctx);
                   // hash current chunk [0..(n-4)] where n is next_out_length
-                  hash_update (z->next_out, ws->hash_algo,
+                  hash_update (z->next_out, ws->computed_hash,
                                next_out_length - 4, ws->hash_ctx);
 
                 }
@@ -771,7 +793,7 @@ process_chunk (z_stream* z, int chunk, void* vp)
                 {
                   // hash last_4[0..n] from previous chunk, 
                   // where n is next_out_length + size_last_4 - 4
-                  hash_update (ws->last_4, ws->hash_algo,
+                  hash_update (ws->last_4, ws->computed_hash,
                                ws->size_last_4 + next_out_length - 4,
                                ws->hash_ctx);
                 }
@@ -791,12 +813,18 @@ process_chunk (z_stream* z, int chunk, void* vp)
           ws->response = 1;
         }
 
+      // skip member if empty and argument skip empty is set
+      if (ws->response && (next_out_length - read_bytes <= 4) && ws->args.skip_empty)
+        {
+          ws->response = 0;
+        }
+
       if (ws->response)
         {
-          if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+          if (ws->recalculate_hash)
             {
               // hash chunk[0..(n-4)], where n is next_out_length
-              hash_update (&z->next_out[read_bytes], ws->hash_algo,
+              hash_update (&z->next_out[read_bytes], ws->computed_hash,
                            next_out_length - read_bytes - 4, ws->hash_ctx);
             }
         }
@@ -815,7 +843,7 @@ int
 process_member (FILE* f_in, FILE* f_out, z_stream *z,
                 struct warcsum_struct* ws)
 {
-  if (ws->args.verbose)
+  if (ws->args.verbose == 2)
     {
       printf ("\n\n");
       printf ("OFFSET: %ld\n", ftell (f_in));
@@ -849,21 +877,22 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
   if (ws->response) // if processed member was response
     {
       char final_digest[DIGEST_LENGTH];
+      char final_hash[HASH_LENGTH];
       // if calculated hash was chosen
-      if (ws->args.force_recalculate_digest || ws->hash_algo != 2)
+      if (ws->recalculate_hash)
         {
           strcpy (final_digest, ws->computed_digest);
         }
       else // if stored hash was chosen
         {
-          strcpy (final_digest, ws->fixed_digest);
+          strcpy (final_digest, ws->stored_digest);
         }
-
-      snprintf (ws->manifest, sizeof (ws->manifest), "%s %u %u %s %s %s\n", ws->WARCFILE_NAME,
+      strcpy (final_hash, ws->args.hash_char);
+      snprintf (ws->manifest, sizeof (ws->manifest), "%s %u %u %s %s %s:%s\n", ws->WARCFILE_NAME,
                 ws->START, ws->END - ws->START, ws->URI,
-                ws->DATE, final_digest);
+                ws->DATE, final_hash, final_digest);
 
-      if (ws->args.verbose)
+      if (ws->args.verbose == 2)
         {
           printf ("%s\n", ws->manifest);
         }
@@ -885,11 +914,14 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
 int
 process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
 {
+  if (ws->args.verbose)
+    {
+      printf ("%s\n", in);
+    }
   /* Open file */
   int file_size;
   FILE* f_in;
   f_in = fopen (in, "r");
-  ws->f_in = f_in;
   if (f_in == NULL)
     {
       fprintf (stderr, "Unable to open file: %s\n", in);
@@ -937,7 +969,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
   ws->effective_out = ws->args.real_out;
 
 
-  //  fseek (f_in, 35755203, SEEK_SET);
+  //  fseek (f_in, 97285811, SEEK_SET);
   // process member by member from the file, till end of file
   do
     {
@@ -946,7 +978,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
        */
       if (ws->need_double)
         {
-          if (ws->args.verbose)
+          if (ws->args.verbose == 2)
             {
               printf ("Chunk size not sufficient\n"
                       "Doubling chunk size\n"
@@ -981,7 +1013,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
           if (doubled)
             {
               // fseek back to start of member
-              fseek (ws->f_in, ws->START, SEEK_SET);
+              fseek (f_in, ws->START, SEEK_SET);
               reset (z, ws);
             }
           else
@@ -1017,6 +1049,7 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
 {
   DIR *dir;
   struct dirent *ent;
+  struct stat file_stat;
   if ((dir = opendir (input_dir)) != NULL)
     {
       while ((ent = readdir (dir)) != NULL)
@@ -1026,23 +1059,27 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
           strcpy (full_file_path, input_dir);
           strcat (full_file_path, "/");
           strcat (full_file_path, ent->d_name);
+          if (stat (full_file_path, &file_stat))
+            {
+              perror ("Error processing file: ");
+            }
           // if "." or "..", skip it
           if (!strcmp_case_insensitive (ent->d_name, ".")
               || !strcmp_case_insensitive (ent->d_name, ".."));
             // if a regular file, process it
-          else if (ent->d_type == DT_REG)
+          else if (S_ISREG (file_stat.st_mode))
             {
               process_file (full_file_path, f_out, z, ws);
             }
             // if a directory, recurse through it
-          else if (ent->d_type == DT_DIR)
+          else if (S_ISDIR (file_stat.st_mode))
             {
               // add '/' to the end of the directory path
               process_directory (full_file_path, f_out, z, ws);
             }
           else
             {
-              if (ws->args.verbose)
+              if (ws->args.verbose == 2)
                 {
                   printf ("%s is neither a regular file nor a directory!\n",
                           ent->d_name);
@@ -1069,7 +1106,7 @@ init (z_stream* z, struct warcsum_struct* ws)
   /* warcsum_struct initialization.*/
   ws->effective_in = ws->args.real_in;
   ws->effective_out = ws->args.real_out;
-  ws->hash_algo = ws->args.hash_code;
+  ws->computed_hash = ws->args.hash_code;
   ws->need_double = 0;
 }
 
@@ -1105,8 +1142,9 @@ process_args (int argc, char **argv, struct cli_args* args)
   args->verbose = 0;
   args->hash_code = 2;
   args->append = 0;
+  args->skip_empty = 0;
   args->recursive = 0;
-  strcpy (args->hash_char, "SHA1");
+  strcpy (args->hash_char, "sha1");
   strcpy (args->f_input, "");
   strcpy (args->f_output, "");
   args->real_in = 8 * 1024;
@@ -1120,6 +1158,7 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"force-recalc", no_argument, 0, 'f'},
+    {"skip-empty", no_argument, 0, 's'},
     {"input-buffer", required_argument, 0, 'I'},
     {"output-buffer", required_argument, 0, 'O'},
     {"append", no_argument, 0, 'a'},
@@ -1131,13 +1170,16 @@ process_args (int argc, char **argv, struct cli_args* args)
   int option_index = 0;
   int length;
 
-  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVr",
+  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVrs",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
         {
         case 'i':
           strcpy (args->f_input, optarg);
+          break;
+        case 'o':
+          strcpy (args->f_output, optarg);
           break;
         case 'H':
           strcpy (args->hash_char, optarg);
@@ -1153,22 +1195,26 @@ process_args (int argc, char **argv, struct cli_args* args)
             {
               args->hash_code = 3;
             }
+          else if (!strcmp_case_insensitive (args->hash_char, "sha512"))
+            {
+              args->hash_code = 4;
+            }
           else
             {
               fprintf (stderr,
                        "Invalid argument %s for hash. "
-                       "Options: md5, sha1, sha256 \n", args->hash_char);
+                       "Options: md5, sha1, sha256, sha512\n", args->hash_char);
               exit (EXIT_FAILURE);
             }
           break;
         case 'f':
           args->force_recalculate_digest = 1;
           break;
-        case 'o':
-          strcpy (args->f_output, optarg);
-          break;
         case 'v':
-          args->verbose = 1;
+          args->verbose++;
+          break;
+        case 's':
+          args->skip_empty = 1;
           break;
         case 'I':
           length = strlen (optarg);
@@ -1282,7 +1328,7 @@ help ()
   printf ("\n");
   printf ("\t-H, --hash=HASHING_ALGORITHM\n");
   printf ("\t\tHashing algorithm to be used for hashing the warc member "
-          "payload.  Possible options are md5, sha1 or sha256. "
+          "payload.  Possible options are md5, sha1, sha256 or sha512. "
           "The default option is sha1.\n");
   printf ("\n");
   printf ("\t-f, --force\n");

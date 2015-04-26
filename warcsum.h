@@ -60,7 +60,8 @@
 #define FILE_NAME_LENGTH 1024
 #define DATE_LENGTH 32
 #define KEY_LENGTH 32
-#define DIGEST_LENGTH 65
+#define DIGEST_LENGTH 130
+#define HASH_LENGTH 8
 #define BINARY_SHA1_LENGTH 160
 
 const char* WARC_HEADER = "WARC/1.0\r";
@@ -80,6 +81,7 @@ struct cli_args
   int verbose;
   int recursive;
   int hash_code;
+  int skip_empty;
   char hash_char[KEY_LENGTH];
   char f_input[FILE_NAME_LENGTH];
   char f_output[FILE_NAME_LENGTH];
@@ -94,10 +96,11 @@ struct cli_args
 struct warcsum_struct
 {
   struct cli_args args;
-  FILE* f_in;
   void* hash_ctx;
+  int recalculate_hash;
   int response;
-  int hash_algo;
+  int computed_hash;
+  int stored_hash;
   unsigned int START;
   unsigned int END;
   unsigned int effective_in;
@@ -108,7 +111,7 @@ struct warcsum_struct
   char WARCFILE_NAME[FILE_NAME_LENGTH];
   char *URI;
   char DATE[DATE_LENGTH];
-  char fixed_digest[DIGEST_LENGTH];
+  char stored_digest[DIGEST_LENGTH];
   char computed_digest[DIGEST_LENGTH];
   char manifest[MANIFEST_LINE_SIZE];
 };

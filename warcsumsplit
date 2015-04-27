@@ -1,0 +1,79 @@
+#! /usr/bin/perl
+
+# Copyright (C) 2015 Bibliotheca Alexandrina
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# warcsumsplit takes a large hash manifest file and number of partitions
+# as input, and attempts to split the large hash manifest file into
+# number of smaller hash manifest files equal to or less than the input
+# number of parititons.
+#
+# warcsumsplit will never break a sequence of hash manifests with the
+# same hash, which might produce uneven parition.
+
+# Input 
+#
+# Large hash manifest sorted on the hash with the following format:
+# <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+
+# Output 
+#
+# Smaller hash manifest files sorted on the hash with the following
+# format:
+#
+# <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
+
+use strict;
+use warnings;
+use Getopt::Long;
+
+my $input_filename = "";
+my $partition_count = 0;
+my $verbose;
+
+GetOptions ("input=s" => \$input_filename, # input filename
+    "count=i" => \$partition_count, # number of required partitions
+    "verbose" => \$verbose) # verbose mode
+  or die("Usage: warcsumsplit.pl [-i | --input <input_file>] ",
+    "[-c | --count <number_of_partitions>] [-v | --verbose]\n");
+
+
+unless(-e $input_filename)
+{
+  die "Error: input file $input_filename does not exist.\n";
+}
+
+unless(-r $input_filename)
+{
+  die "Error: input file $input_filename is not readable.\n";
+}
+
+unless($partition_count =~ /^[+]?\d+\z/ and $partition_count != 0)
+{
+  die "Error: $partition_count is an invalid number of split counts.\n";
+}
+
+my $input_size = -s $input_filename
+  or die "Error: input file $input_filename is empty.\n";
+
+print "File size is: $input_size\n";
+
+open(my $input, "<", $input_filename)
+  or die "Error: cannot open $input_filename for reading: $!";
+
+close($input)
+  or warn "Error: Unable to close the input file $input_filename: $!";
+
+exit 0;

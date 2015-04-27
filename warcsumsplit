@@ -38,10 +38,15 @@
 use strict;
 use warnings;
 use Getopt::Long;
+use Data::Dumper qw(Dumper);
 
 my $input_filename = "";
 my $partition_count = 0;
 my $verbose;
+
+################################
+# Parse the program's options. #
+################################
 
 GetOptions ("input=s" => \$input_filename, # input filename
     "count=i" => \$partition_count, # number of required partitions
@@ -69,6 +74,24 @@ my $input_size = -s $input_filename
   or die "Error: input file $input_filename is empty.\n";
 
 print "File size is: $input_size\n";
+
+########################################################
+# Calculate the approximate indices for the partitions #
+########################################################
+
+my @partition_index;
+
+$partition_index[0] = 0;
+
+for my $i (1 .. $partition_count - 1)
+{
+  use integer;
+  $partition_index[$i] = $input_size / $partition_count * $i;
+}
+
+$partition_index[$#partition_index] = $input_size;
+
+print Dumper \@partition_index;
 
 open(my $input, "<", $input_filename)
   or die "Error: cannot open $input_filename for reading: $!";

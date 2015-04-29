@@ -51,7 +51,7 @@ my $verbose;
 GetOptions ("input=s" => \$input_filename, # input filename
     "count=i" => \$partition_count, # number of required partitions
     "verbose" => \$verbose) # verbose mode
-  or die("Usage: warcsumsplit.pl [-i | --input <input_file>] ",
+or die("Usage: warcsumsplit.pl [-i | --input <input_file>] ",
     "[-c | --count <number_of_partitions>] [-v | --verbose]");
 
 
@@ -71,9 +71,7 @@ unless($partition_count =~ /^[+]?\d+\z/ and $partition_count != 0)
 }
 
 my $input_size = -s $input_filename
-  or die "Error: input file $input_filename is empty.";
-
-print "File size is: $input_size";
+or die "Error: input file $input_filename is empty.";
 
 ########################################################
 # Calculate the approximate indices for the partitions #
@@ -83,72 +81,74 @@ my @partition_index;
 
 $partition_index[0] = 0;
 
-for my $i (1 .. $partition_count)
+for my $i (1 .. $partition_count - 1)
 {
   use integer;
   $partition_index[$i] = $input_size / $partition_count * $i;
 }
 
-print Dumper \@partition_index;
+$partition_index[$#partition_index + 1] = $input_size;
 
 open(my $input, "<", $input_filename)
-  or die "Error: cannot open $input_filename for reading: $!";
+or die "Error: cannot open $input_filename for reading: $!";
 
 my @real_partition_index;
 
 $real_partition_index[0] = 0;
 
-seek($input, $partition_index[1], 0);
-
-my $line = <$input>;
-
-print $line;
-
-defined($line = <$input>)
-  or warn "Error: Could not read line at $.: $!";
-
-my $hash = (split(' ', $line))[-1];
-
-print $hash;
-
-my $hash2 = $hash;
-
-my $line2 = "";
-
-my $current_pos = tell($input);
-
-$real_partition_index[1] = $current_pos;
-
-while($hash eq $hash2 and defined($line2 = <$input>))
+for  my $i (1 .. $partition_count - 1)
 {
-  $real_partition_index[1] = $current_pos;
-  $current_pos = tell($input);
-  print $line2;
-  $hash2 = (split(' ', $line2))[-1];
+  if($partition_index[$i] <=
+      $real_partition_index[$#real_partition_index])
+  {
+    next;
+  }
+  seek($input, $partition_index[$i], 0);
+
+  my $line = <$input>;
+
+  defined($line = <$input>)
+    or warn "Error: Could not read line at $.: $!";
+
+  my $hash = (split(' ', $line))[-1];
+
+  my $hash2 = $hash;
+
+  my $line2 = "";
+
+  my $current_pos = tell($input);
+
+  $real_partition_index[$#real_partition_index + 1] = $current_pos;
+
+  while($hash eq $hash2 and defined($line2 = <$input>))
+  {
+    $real_partition_index[$#real_partition_index] = $current_pos;
+    $current_pos = tell($input);
+    $hash2 = (split(' ', $line2))[-1];
+  } 
+
 }
 
-$real_partition_index[$#real_partition_index + 1] = $input_size;
+$real_partition_index[$#real_partition_index] = $input_size;
 
-seek($input, 0, 0);
-
-open(my $output, ">", "$input_filename.1")
-  or die "Error: cannot open $input_filename for reading: $!";
-
-my $read;
-
-while(defined($read = <$input>) and $real_partition_index[1] > tell($output))
+for my $i (1 .. $#real_partition_index)
 {
-  print $output $read;
+  seek($input, $real_partition_index[$i - 1], 0);
+
+  open(my $output, ">", "$input_filename.$i")
+    or die "Error: cannot open $input_filename for reading: $!";
+
+  my $read;
+
+  while(defined($read = <$input>) and $real_partition_index[$i] >=
+  tell($input))
+  {
+    print $output $read;
+  }
+
+  close($output)
+    or warn "Error: Unable to close the input file $input_filename.$i: $!";
 }
-
-close($output)
- or warn "Error: Unable to close the input file $input_filename.1: $!";
-
-print Dumper \@real_partition_index;
-
-$line2 = <$input>;
-
-print $line2;
 
 close($input)
   or warn "Error: Unable to close the input file $input_filename: $!";

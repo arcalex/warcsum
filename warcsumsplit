@@ -42,6 +42,7 @@ use Data::Dumper qw(Dumper);
 
 my $input_filename = "";
 my $partition_count = 0;
+my $partition_size = "";
 my $verbose;
 
 ###############################
@@ -49,9 +50,11 @@ my $verbose;
 ###############################
 GetOptions ("input=s" => \$input_filename, # input filename
     "count=i" => \$partition_count, # number of required partitions
+    "size=s" => \$partition_size, # size of required partitions
     "verbose" => \$verbose) # verbose mode
 or die("Usage: warcsumsplit.pl [-i | --input <input_file>] ",
-    "[-c | --count <number_of_partitions>] [-v | --verbose]");
+    "[-c | --count <number_of_partitions>] [-s | --partition-size] ",
+    "[-v | --verbose]");
 
 
 unless(-e $input_filename)
@@ -64,13 +67,43 @@ unless(-r $input_filename)
   die "Error: input file $input_filename is not readable.";
 }
 
-unless($partition_count =~ /^[+]?\d+\z/ and $partition_count != 0)
+if($partition_size eq "" && $partition_count !~ /^[+]?\d+\z/ &&
+$partition_count == 0)
 {
   die "Error: $partition_count is an invalid number of split counts.";
+}
+elsif($partition_count == 0 && $partition_size ne "" and
+$partition_size !~ /^[+]?\d+[KMG]?\z/)
+{
+  die "Error: $partition_size is an invalid number of split counts.";
 }
 
 my $input_size = -s $input_filename
 or die "Error: input file $input_filename is empty.";
+
+if($partition_size ne "")
+{
+  no warnings;
+  use Switch;
+  switch(my $unit = substr $partition_size, -1)
+  {
+    case "K"
+    {
+      chomp $partition_size;
+      $partition_size = $partition_size * 1024;
+    }
+    case "M"
+    {
+      chomp $partition_size;
+      $partition_size = $partition_size * 1024 * 1024;
+    }
+    case "G"
+    {
+      chomp $partition_size;
+      $partition_size = $partition_size * 1024 * 1024 * 1024;
+    }
+  }
+}
 
 ########################################################
 # Calculate the approximate indices for the partitions #
@@ -80,10 +113,23 @@ my @partition_index;
 
 $partition_index[0] = 0;
 
-for my $i (1 .. $partition_count)
+if($partition_size > 0 and $partition_count == 0)
 {
-  use integer;
-  $partition_index[$i] = $input_size / $partition_count * $i;
+  my $i = 0;
+
+  while($partition_index[$i] < $input_size)
+  {
+    $partition_index[$i + 1] = $partition_index[$i] + $partition_size;
+    $i++;
+  }
+}
+else
+{
+  for my $i (1 .. $partition_count)
+  {
+    use integer;
+    $partition_index[$i] = $input_size / $partition_count * $i;
+  }
 }
 
 $partition_index[$#partition_index] = $input_size;
@@ -99,7 +145,7 @@ my @real_partition_index;
 
 $real_partition_index[0] = 0;
 
-for  my $i (1 .. $partition_count - 1)
+for  my $i (1 .. $#partition_index - 1)
 {
   if($partition_index[$i] <=
       $real_partition_index[$#real_partition_index])
@@ -114,7 +160,7 @@ for  my $i (1 .. $partition_count - 1)
   # If the last index was at the last line #
   # in the input file, exit the loop       #
   ##########################################
-  unless(eof($input))
+  if(eof($input))
   {
     last;
   }
@@ -170,5 +216,4 @@ for my $i (1 .. $#real_partition_index)
 
 close($input)
   or warn "Error: Unable to close the input file $input_filename: $!";
-
 exit 0;

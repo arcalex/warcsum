@@ -44,10 +44,9 @@ my $input_filename = "";
 my $partition_count = 0;
 my $verbose;
 
-################################
-# Parse the program's options. #
-################################
-
+###############################
+# Parse the program's options #
+###############################
 GetOptions ("input=s" => \$input_filename, # input filename
     "count=i" => \$partition_count, # number of required partitions
     "verbose" => \$verbose) # verbose mode
@@ -81,17 +80,21 @@ my @partition_index;
 
 $partition_index[0] = 0;
 
-for my $i (1 .. $partition_count - 1)
+for my $i (1 .. $partition_count)
 {
   use integer;
   $partition_index[$i] = $input_size / $partition_count * $i;
 }
 
-$partition_index[$#partition_index + 1] = $input_size;
+$partition_index[$#partition_index] = $input_size;
 
 open(my $input, "<", $input_filename)
 or die "Error: cannot open $input_filename for reading: $!";
 
+###########################################################
+# Calculate the real indices for the partitions based on  # 
+# the input file and duplicates at each approximate index #
+###########################################################
 my @real_partition_index;
 
 $real_partition_index[0] = 0;
@@ -107,8 +110,17 @@ for  my $i (1 .. $partition_count - 1)
 
   my $line = <$input>;
 
+  ##########################################
+  # If the last index was at the last line #
+  # in the input file, exit the loop       #
+  ##########################################
+  unless(eof($input))
+  {
+    last;
+  }
+
   defined($line = <$input>)
-    or warn "Error: Could not read line at $.: $!";
+  or last;
 
   my $hash = (split(' ', $line))[-1];
 
@@ -129,8 +141,14 @@ for  my $i (1 .. $partition_count - 1)
 
 }
 
-$real_partition_index[$#real_partition_index] = $input_size;
+unless($real_partition_index[$#real_partition_index] == $input_size)
+{
+  $real_partition_index[$#real_partition_index + 1] = $input_size;
+}
 
+#########################################
+# Copy each partition to a separate file #
+#########################################
 for my $i (1 .. $#real_partition_index)
 {
   seek($input, $real_partition_index[$i - 1], 0);

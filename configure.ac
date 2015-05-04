@@ -12,7 +12,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 
 # Checks for libraries.
-# FIXME: Replace `main' with a function in `-lcrypto':
+# FIXME: Replace `main' with a function in `-lgzmulti':
 AC_CHECK_LIB([gzmulti], [main])
 # FIXME: Replace `main' with a function in `-lcrypto':
 AC_CHECK_LIB([crypto], [main])
@@ -28,6 +28,8 @@ AC_CHECK_LIB([mysqlclient], [main])
 AC_CHECK_LIB([pthread], [main])
 # FIXME: Replace `main' with a function in `-lrt':
 AC_CHECK_LIB([rt], [main])
+# FIXME: Replace `main' with a function in `-lconfig':
+AC_CHECK_LIB([config], [main])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h])

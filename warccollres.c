@@ -181,37 +181,46 @@ dump_hash_cluster (FILE* output, Record *recList)
 }
 
 MYSQL *
-mySQL_connect (FILE *dbSet, MYSQL * conn)
+mySQL_connect (config_t *db_cfg, MYSQL * conn)
 {
-  char *server = NULL, *user = NULL, *password = NULL, *database = NULL;
-  size_t len = 0;
-  if (getline (&server, &len, dbSet) <= 0)
+  const char *server = NULL, *user = NULL, *password = NULL, *database = NULL;
+
+  /* 
+   * Get the database server.
+   */
+  if (!config_lookup_string (db_cfg, "server", &server))
     {
-      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      fprintf (stderr, "No server setting in configuration file.\n");
       return NULL;
     }
-  server[strlen (server) - 1] = '\0';
-  len = 0;
-  if (getline (&user, &len, dbSet) <= 0)
+  
+  /* 
+   * Get the database server.
+   */
+  if (!config_lookup_string (db_cfg, "user", &user))
     {
-      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      fprintf (stderr, "No server setting in configuration file.\n");
       return NULL;
     }
-  user[strlen (user) - 1] = '\0';
-  len = 0;
-  if (getline (&password, &len, dbSet) <= 0)
+  
+  /* 
+   * Get the database server.
+   */
+  if (!config_lookup_string (db_cfg, "password", &password))
     {
-      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      fprintf (stderr, "No server setting in configuration file.\n");
       return NULL;
     }
-  password[strlen (password) - 1] = '\0';
-  len = 0;
-  if (getline (&database, &len, dbSet) <= 0)
+  
+  /* 
+   * Get the database server.
+   */
+  if (!config_lookup_string (db_cfg, "database", &database))
     {
-      fprintf (stderr, "ERROR: cannot read the database settings file.\r\n");
+      fprintf (stderr, "No server setting in configuration file.\n");
       return NULL;
     }
-  database[strlen (database) - 1] = '\0';
+
   conn = mysql_init (NULL);
   /* Connect to database */
   if (!mysql_real_connect (conn, server,
@@ -220,10 +229,7 @@ mySQL_connect (FILE *dbSet, MYSQL * conn)
       fprintf (stderr, "%s\n", mysql_error (conn));
       return NULL;
     }
-  free (server);
-  free (user);
-  free (password);
-  free (database);
+  
   return conn;
 }
 
@@ -953,18 +959,27 @@ main (int argc, char** argv)
 
       /* Connecting to the database where the URLs are available */
       MYSQL *conn;
-      FILE *dbSet = fopen (options.dbFile, "r");
-      if (dbSet)
+      config_t db_cfg;
+
+      config_init (&db_cfg);
+
+      /* Read the file. If there is an error, report it and exit. */
+      if (!config_read_file (&db_cfg, options.dbFile))
         {
-          conn = mySQL_connect (dbSet, conn);
-          fclose (dbSet);
-        }
-      else
-        {
-          fprintf (stderr, "Error: Could not open the database's settings file."
-                   "\nAborting...");
+          fprintf (stderr, "%s:%d - %s\n", config_error_file (&db_cfg),
+                   config_error_line (&db_cfg), config_error_text (&db_cfg));
+          config_destroy (&db_cfg);
           return (EXIT_FAILURE);
         }
+      if(conn = mySQL_connect (&db_cfg, conn))
+        config_destroy(&db_cfg);
+      else{
+          fprintf (stderr, "Error: Couldn't parse the database settings file "
+                  "%s.\nAborting..."
+               , options.dbFile);
+        return (EXIT_FAILURE);
+        }
+
       free (options.dbFile);
       /* Start processing the input file */
       FILE* output = fopen (options.oFile, "w");

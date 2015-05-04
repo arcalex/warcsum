@@ -68,6 +68,7 @@
 #include <getopt.h>
 #include <mysql/mysql.h>
 #include <curl/curl.h>
+#include <libconfig.h>
 #include <gzmulti.h>
 #include <time.h>
 #include <errno.h>
@@ -136,7 +137,7 @@ void
 dump_hash_cluster(FILE* output, Record *recList);
 
 MYSQL*
-mySQL_connect(FILE *dbSet, MYSQL *conn);
+mySQL_connect(config_t *db_cfg, MYSQL *conn);
 
 size_t
 get_url_from_db(MYSQL *conn, char *filename, char ***url);

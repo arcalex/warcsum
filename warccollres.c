@@ -190,34 +190,34 @@ mySQL_connect (config_t *db_cfg, MYSQL * conn)
    */
   if (!config_lookup_string (db_cfg, "server", &server))
     {
-      fprintf (stderr, "No server setting in configuration file.\n");
+      fprintf (stderr, "No server set in configuration file.\n");
       return NULL;
     }
   
   /* 
-   * Get the database server.
+   * Get the database user.
    */
   if (!config_lookup_string (db_cfg, "user", &user))
     {
-      fprintf (stderr, "No server setting in configuration file.\n");
+      fprintf (stderr, "No user set in configuration file.\n");
       return NULL;
     }
   
   /* 
-   * Get the database server.
+   * Get the database password.
    */
   if (!config_lookup_string (db_cfg, "password", &password))
     {
-      fprintf (stderr, "No server setting in configuration file.\n");
+      fprintf (stderr, "No password set in configuration file.\n");
       return NULL;
     }
   
   /* 
-   * Get the database server.
+   * Get the database name.
    */
   if (!config_lookup_string (db_cfg, "database", &database))
     {
-      fprintf (stderr, "No server setting in configuration file.\n");
+      fprintf (stderr, "No database set in configuration file.\n");
       return NULL;
     }
 

@@ -975,7 +975,7 @@ main (int argc, char** argv)
         config_destroy(&db_cfg);
       else{
           fprintf (stderr, "Error: Couldn't parse the database settings file "
-                  "%s.\nAborting..."
+                  "%s.\nAborting...\n"
                , options.dbFile);
         return (EXIT_FAILURE);
         }

@@ -87,6 +87,33 @@ static struct options {
     char *iFile, *oFile, *dbFile;
 } options;
 
+typedef struct MemoryStruct {
+    char *memory;
+    size_t size;
+} MemoryStruct;
+
+typedef struct Record {
+    char *filename, *uri, *date, *hash;
+    size_t offset, length, ext, copy_no, member_size;
+    MemoryStruct *member_memory, *compressed_member_memory;
+    struct Record *next, *next_collision;
+    FILE *member_file, *compressed_member_file;
+} Record;
+
+static struct global {
+    FILE *input, *output;
+    
+    char *current_line, *current_hash;
+    
+    size_t total_records, total_duplicates, total_collisions, total_skipped,
+            line_no;
+    
+    Record *current_record, *record_cluster;
+    
+    MYSQL *conn;
+    
+} global;
+
 static struct option long_options[] = {
     {"input", required_argument, 0, 'i'},
     {"output", required_argument, 0, 'o'},
@@ -101,19 +128,6 @@ static struct option long_options[] = {
     {"help", no_argument, 0, 'h'},
     {0, 0, 0, 0}
 };
-
-typedef struct MemoryStruct {
-    char *memory;
-    size_t size;
-} MemoryStruct;
-
-typedef struct Record {
-    char *filename, *uri, *date, *hash;
-    size_t offset, length, ext, copy_no, member_size;
-    MemoryStruct *member_memory, *compressed_member_memory;
-    struct Record *next, *next_collision;
-    FILE *member_file, *compressed_member_file;
-} Record;
 
 void
 version();
@@ -134,13 +148,13 @@ void
 destroy_record(Record *object);
 
 void
-dump_hash_cluster(FILE* output, Record *recList);
+dump_hash_cluster();
 
 MYSQL*
-mySQL_connect(config_t *db_cfg, MYSQL *conn);
+mySQL_connect(config_t *db_cfg);
 
 size_t
-get_url_from_db(MYSQL *conn, char *filename, char ***url);
+get_url_from_db(char *filename, char ***url);
 
 bool
 compare_records(Record *first, Record *second);
@@ -155,12 +169,21 @@ bool
 http_download_file(char **url, size_t url_count, Record *record);
 
 bool
-download_record(Record *record, MYSQL *conn, size_t *lineNo);
+download_record(Record *record);
 
 bool
 inflate_record_member(Record *record);
 
 void
 process_chunk(z_stream *z, int chunk, void *vp);
+
+void
+global_init();
+
+void
+cleanup();
+
+void
+print_stats();
 
 #endif	/* WARCCOLLRES_H */

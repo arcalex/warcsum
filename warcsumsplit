@@ -37,25 +37,63 @@
 
 use strict;
 use warnings;
-use Getopt::Long;
+use Getopt::Long qw(:config bundling);
 use Data::Dumper qw(Dumper);
 
 my $input_filename = "";
 my $partition_count = 0;
 my $partition_size = "";
-my $verbose;
+my $quiet;
+my $version;
+my $help;
 
 ###############################
 # Parse the program's options #
 ###############################
-GetOptions ("input=s" => \$input_filename, # input filename
-    "count=i" => \$partition_count, # number of required partitions
-    "size=s" => \$partition_size, # size of required partitions
-    "verbose" => \$verbose) # verbose mode
+GetOptions ("i|input=s" => \$input_filename, # input filename
+    "c|count=i" => \$partition_count, # number of required partitions
+    "s|size=s" => \$partition_size, # size of required partitions
+    "V|version" => \$version, # print the version
+    "h|help" => \$help, # print the version
+    "q|quiet" => \$quiet) # quiet mode
 or die("Usage: warcsumsplit.pl [-i | --input <input_file>] ",
     "[-c | --count <number_of_partitions>] [-s | --partition-size] ",
-    "[-v | --verbose]");
+    "[-q | --quiet]");
 
+if($version)
+{
+  print "GNU warccollres 0.1\n",
+        " * Copyright (C) 2015 Bibliotheca Alexandrina\n";
+  exit 0;
+}
+
+if($help)
+{
+  print "Usage:\n",
+        "\twarccollres [-i <filename>] [-s <output partition size>]\n",
+        "\twarccollres [-i <filename>] [-c <number of partitions>]\n";
+
+  print "Options:\n",
+        "\t-i, --input=FILE\n",
+        "\t\tPath to input digests manifest file.\n";
+
+  print "\t-s, --size=NUMBER\n",
+        "\t\tDesired size for each of the output files.\n";
+
+  print "\t-c, --count=NUMBER\n",
+        "\t\tDesired number of partitions.\n";
+  
+  print "\t-q, --quiet\n",
+        "\t\tDo not produce any messages..\n";
+  
+  print "\t-v, --version\n",
+        "\t\tPrint the version.\n";
+  
+  print "\t-h, --help\n",
+        "\t\tPrint this message.\n";
+  
+  exit 0;
+}
 
 unless(-e $input_filename)
 {
@@ -113,7 +151,7 @@ my @partition_index;
 
 $partition_index[0] = 0;
 
-if($partition_size > 0 and $partition_count == 0)
+if($partition_size eq "" and $partition_count == 0)
 {
   my $i = 0;
 
@@ -212,8 +250,44 @@ for my $i (1 .. $#real_partition_index)
 
   close($output)
     or warn "Error: Unable to close the input file $input_filename.$i: $!";
+  unless($quiet)
+  {
+    my $format_part_size = $real_partition_index[$i] -
+    $real_partition_index[$i - 1];
+    
+    if($format_part_size > 1 * 1024 * 1024 * 1024)
+    {
+      $format_part_size /= 1024 * 1024 * 1024;
+      $format_part_size = sprintf "%.2f", $format_part_size;
+      $format_part_size = "$format_part_size GiB";
+    }
+    elsif($format_part_size > 1 * 1024 * 1024)
+    {
+      $format_part_size /= 1024 * 1024;
+      $format_part_size = sprintf "%.2f", $format_part_size;
+      $format_part_size = "$format_part_size MiB";
+    }
+    elsif($format_part_size > 1 * 1024)
+    {
+      $format_part_size /= 1024;
+      $format_part_size = sprintf "%.2f", $format_part_size;
+      $format_part_size= "$format_part_size KiB";
+    }
+    else
+    {
+      $format_part_size= "$format_part_size Bytes";
+    }
+
+    print STDERR "$input_filename.$i size is: $format_part_size\n";
+  }
+}
+
+unless($quiet)
+{
+  print STDERR "Total number of partitions is: $#real_partition_index\n"
 }
 
 close($input)
   or warn "Error: Unable to close the input file $input_filename: $!";
+
 exit 0;

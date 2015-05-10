@@ -95,7 +95,7 @@ static struct option long_options[] = {
     {"input-buffer", required_argument, 0, 'I'},
     {"output-buffer", required_argument, 0, 'O'},
     {"memory-only", no_argument, 0, 'm'},
-    {"quite", no_argument, 0, 'q'},
+    {"quiet", no_argument, 0, 'q'},
     {"verbose", no_argument, 0, 'v'},
     {"version", no_argument, 0, 'V'},
     {"help", no_argument, 0, 'h'},

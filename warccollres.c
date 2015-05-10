@@ -734,8 +734,9 @@ usage ()
 {
   fprintf (stderr, "Usage: warccollres [-i | --input <filename>]"
            "[-o | --output <filename>] [-s | --db-settings <filename>] "
-           "[-p | --proc] [-I | --input-buffer] [-O | --output-buffer] "
-           "[-m | --memory-only][-q | --quite] [-v | --verbose]\n");
+           "[-p | --proc] [-I | --input-buffer <input buffer size>] "
+          "[-O | --output-buffer <output buffer size>] "
+           "[-m | --memory-only][-q | --quiet] [-v | --verbose]\n");
 }
 
 /*
@@ -749,10 +750,8 @@ help ()
 {
   printf ("Usage\n");
 
-  printf ("\tUsage: warccollres [-i | --input <filename>]"
-          "[-o | --output <filename>] [-s | --db-settings <filename>] "
-          "[-p | --proc] [-I | --input-buffer] [-O | --output-buffer] "
-          "[-m | --memory-only][-q | --quite] [-v | --verbose]\n\n");
+  printf ("\twarccollres [-i <filename>] [-o <filename>] [-s <filename>] "
+          "[-I <input buffer size>] [-O <output buffer size>] -p -m -v\n\n");
 
   printf ("Options\n");
 
@@ -762,7 +761,7 @@ help ()
   printf ("\t-o, --output=FILE\n");
   printf ("\t\tPath to extended digests manifest file.\n\n");
 
-  printf ("\t-o, --db-settings=FILE\n");
+  printf ("\t-s, --db-settings=FILE\n");
   printf ("\t\tPath to the database settings file.\n\n");
 
   printf ("\t-I, --input-buffer=NUMBER\n");
@@ -781,7 +780,7 @@ help ()
   printf ("\t-v, --verbose\n");
   printf ("\t\tVerbose mode. Print more messages about the process.\n\n");
 
-  printf ("\t-q, --quite\n");
+  printf ("\t-q, --quiet\n");
   printf ("\t\tQuite mode. Do not print any messages about the process.\n\n");
 
   printf ("\t-V, --version\n");

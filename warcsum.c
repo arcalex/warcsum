@@ -1139,7 +1139,7 @@ process_args (int argc, char **argv, struct cli_args* args)
 {
   /* Default values */
   args->force_recalculate_digest = 0;
-  args->verbose = 0;
+  args->verbose = 1;
   args->hash_code = 2;
   args->append = 0;
   args->skip_empty = 0;
@@ -1157,6 +1157,7 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"hash", required_argument, 0, 'H'},
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
+    {"quiet", no_argument, 0, 'q'},
     {"force-recalc", no_argument, 0, 'f'},
     {"skip-empty", no_argument, 0, 's'},
     {"input-buffer", required_argument, 0, 'I'},
@@ -1170,7 +1171,7 @@ process_args (int argc, char **argv, struct cli_args* args)
   int option_index = 0;
   int length;
 
-  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahVrs",
+  while ((opt = getopt_long (argc, argv, "I:O:i:o:H:fvahqVrs",
                              long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -1211,7 +1212,11 @@ process_args (int argc, char **argv, struct cli_args* args)
           args->force_recalculate_digest = 1;
           break;
         case 'v':
-          args->verbose++;
+          if (args->verbose)
+            args->verbose++;
+          break;
+        case 'q':
+          args->verbose = 0;
           break;
         case 's':
           args->skip_empty = 1;
@@ -1269,6 +1274,7 @@ process_args (int argc, char **argv, struct cli_args* args)
                    "[-H hashing algorithm] "
                    "[-f force digest calculation] "
                    "[-v verbose] "
+                   "[-q quiet] "
                    "[-r recursive] "
                    "[-I input buffer size] "
                    "[-O output buffer size] "
@@ -1283,6 +1289,7 @@ process_args (int argc, char **argv, struct cli_args* args)
                "[-H hashing algorithm] "
                "[-f force digest calculation] "
                "[-v verbose] "
+               "[-q quiet] "
                "[-r recursive] "
                "[-I input buffer size] "
                "[-O output buffer size] "
@@ -1310,7 +1317,7 @@ help ()
 {
   printf ("Usage\n");
   printf ("\twarcsum [-i FILE] [-o FILE] [-H HASH ALGO] "
-          "[-I Input buffer size] [-O Output buffer size] -a -f -v\n");
+          "[-I Input buffer size] [-O Output buffer size] -a -f -v -q\n");
   printf ("Options\n");
   printf ("\t-i, --input=FILE\n");
   printf ("\t\tPath to warcfile.\n");
@@ -1340,6 +1347,7 @@ help ()
   printf ("\t\tAppend to output file instead of rewriting it.\n");
   printf ("\n");
   printf ("\t-v, --verbose\n");
+  printf ("\t-q, --quiet\n");
   printf ("\n");
 }
 

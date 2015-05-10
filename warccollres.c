@@ -193,7 +193,7 @@ mySQL_connect (config_t *db_cfg, MYSQL * conn)
       fprintf (stderr, "No server set in configuration file.\n");
       return NULL;
     }
-  
+
   /* 
    * Get the database user.
    */
@@ -202,7 +202,7 @@ mySQL_connect (config_t *db_cfg, MYSQL * conn)
       fprintf (stderr, "No user set in configuration file.\n");
       return NULL;
     }
-  
+
   /* 
    * Get the database password.
    */
@@ -211,7 +211,7 @@ mySQL_connect (config_t *db_cfg, MYSQL * conn)
       fprintf (stderr, "No password set in configuration file.\n");
       return NULL;
     }
-  
+
   /* 
    * Get the database name.
    */
@@ -229,7 +229,7 @@ mySQL_connect (config_t *db_cfg, MYSQL * conn)
       fprintf (stderr, "%s\n", mysql_error (conn));
       return NULL;
     }
-  
+
   return conn;
 }
 
@@ -735,7 +735,7 @@ usage ()
   fprintf (stderr, "Usage: warccollres [-i | --input <filename>]"
            "[-o | --output <filename>] [-s | --db-settings <filename>] "
            "[-p | --proc] [-I | --input-buffer <input buffer size>] "
-          "[-O | --output-buffer <output buffer size>] "
+           "[-O | --output-buffer <output buffer size>] "
            "[-m | --memory-only][-q | --quiet] [-v | --verbose]\n");
 }
 
@@ -917,15 +917,7 @@ process_args (int argc, char** argv)
           exit (EXIT_FAILURE);
         }
     }
-}
-
-int
-main (int argc, char** argv)
-{
-
-  process_args (argc, argv);
-
-  /* Default values if any was not selected */
+  
   if (options.iFile == NULL)
     {
       fprintf (stderr, "Error: No input file was specified.\n");
@@ -944,6 +936,13 @@ main (int argc, char** argv)
       usage ();
       exit (EXIT_FAILURE);
     }
+}
+
+int
+main (int argc, char** argv)
+{
+
+  process_args (argc, argv);
 
   FILE *input = fopen (options.iFile, "r");
   free (options.iFile);
@@ -970,13 +969,14 @@ main (int argc, char** argv)
           config_destroy (&db_cfg);
           return (EXIT_FAILURE);
         }
-      if(conn = mySQL_connect (&db_cfg, conn))
-        config_destroy(&db_cfg);
-      else{
+      if (conn = mySQL_connect (&db_cfg, conn))
+        config_destroy (&db_cfg);
+      else
+        {
           fprintf (stderr, "Error: Couldn't parse the database settings file "
-                  "%s.\nAborting...\n"
-               , options.dbFile);
-        return (EXIT_FAILURE);
+                   "%s.\nAborting...\n"
+                   , options.dbFile);
+          return (EXIT_FAILURE);
         }
 
       free (options.dbFile);

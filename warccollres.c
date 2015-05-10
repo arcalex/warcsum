@@ -781,7 +781,7 @@ help ()
   printf ("\t\tVerbose mode. Print more messages about the process.\n\n");
 
   printf ("\t-q, --quiet\n");
-  printf ("\t\tQuite mode. Do not print any messages about the process.\n\n");
+  printf ("\t\tQuiet mode. Do not print any messages about the process.\n\n");
 
   printf ("\t-V, --version\n");
   printf ("\t\tPrint the version.\n\n");

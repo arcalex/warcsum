@@ -419,7 +419,7 @@ process_warcheader (z_stream *z, void* vp)
           if (attrs->args.verbose == 2)
             {
               fprintf (stderr, "WARC payload digest: %s:%s \n", precomputed_hash,
-                      precomputed_digest);
+                       precomputed_digest);
             }
           free (pch);
         }
@@ -525,7 +525,7 @@ process_warcheader (z_stream *z, void* vp)
           if (attrs->args.verbose == 2)
             {
               fprintf (stderr, "Stored digest:\t%s:%s \n",
-                      attrs->args.hash_char, attrs->stored_digest);
+                       attrs->args.hash_char, attrs->stored_digest);
             }
         }
     }
@@ -948,9 +948,9 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
           if (ws->args.verbose == 2)
             {
               fprintf (stderr, "Chunk size not sufficient\n"
-                      "Doubling chunk size\n"
-                      "%u %u\n",
-                      ws->START, ws->effective_out);
+                       "Doubling chunk size\n"
+                       "%u %u\n",
+                       ws->START, ws->effective_out);
             }
           short doubled = 0;
           // if can double effective_in_out without overflowing:
@@ -986,8 +986,8 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
           else
             {
               fprintf (stderr, "Both in buffer and out buffer reached maximum "
-                      "allowed size!\n"
-                      "Skipping member.\n");
+                       "allowed size!\n"
+                       "Skipping member.\n");
             }
         }
       else
@@ -1049,7 +1049,7 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
               if (ws->args.verbose == 2)
                 {
                   fprintf (stderr, "%s is neither a regular file nor a directory!\n",
-                          ent->d_name);
+                           ent->d_name);
                 }
             }
         }
@@ -1122,13 +1122,13 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"output", required_argument, 0, 'o'},
     {"input", required_argument, 0, 'i'},
     {"hash", required_argument, 0, 'H'},
+    {"input-buffer", required_argument, 0, 'I'},
+    {"output-buffer", required_argument, 0, 'O'},
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"quiet", no_argument, 0, 'q'},
     {"force-recalc", no_argument, 0, 'f'},
     {"skip-empty", no_argument, 0, 's'},
-    {"input-buffer", required_argument, 0, 'I'},
-    {"output-buffer", required_argument, 0, 'O'},
     {"append", no_argument, 0, 'a'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
@@ -1236,31 +1236,21 @@ process_args (int argc, char **argv, struct cli_args* args)
           help ();
           exit (EXIT_SUCCESS);
         default:
-          fprintf (stderr, "Usage: warcsum [-i input file | required] "
-                   "[-o output file | required] "
-                   "[-H hashing algorithm] "
-                   "[-f force digest calculation] "
-                   "[-v verbose] "
-                   "[-q quiet] "
-                   "[-r recursive] "
-                   "[-I input buffer size] "
-                   "[-O output buffer size] "
-                   "[-a append] \n");
+          fprintf (stderr,
+                   "Usage: warcsum --input=FILE --output=FILE [--hash=ALGORITHM]\n"
+                   "               [--force] [--verbose] [--quiet] [--recursive]\n"
+                   "               [--input-buffer=SIZE] [--output-buffer=SIZE]\n"
+                   "               [--append]\n");
           exit (EXIT_FAILURE);
         }
     }
   if (!strcmp (args->f_input, "") || !strcmp (args->f_output, ""))
     {
-      fprintf (stderr, "Usage: warcsum [-i input file | required] "
-               "[-o output file | required] "
-               "[-H hashing algorithm] "
-               "[-f force digest calculation] "
-               "[-v verbose] "
-               "[-q quiet] "
-               "[-r recursive] "
-               "[-I input buffer size] "
-               "[-O output buffer size] "
-               "[-a append] \n");
+      fprintf (stderr,
+               "Usage: warcsum --input=FILE --output=FILE [--hash=ALGORITHM]\n"
+               "               [--force] [--verbose] [--quiet] [--recursive]\n"
+               "               [--input-buffer=SIZE] [--output-buffer=SIZE]\n"
+               "               [--append]\n");
       exit (EXIT_FAILURE);
     }
   return 0;

@@ -4,43 +4,48 @@ warcsum \- reads multimember warc files and generates digest for the
 http response members.
 .SH SYNOPSIS
 .B warcsum
-[\fB\-i\fR \fIFILE\fR]
-[\fB\-o\fR \fIFILE\fR]
-[\fB\-h\fR \fIHASH ALGO\fR]
-[\fB\-n\fR \fIInput buffer size\fR]
-[\fB\-u\fR \fIOutput buffer size\fR]
-\fB\-a\fR
-\fB\-f\fR
-\fB\-v\fR
+\fB\--input\fR=\fIfile\fR
+\fB\--output\fR=\fIfile\fR
+[\fB\--hash\fR=\fIalgorithm\fR]
+[\fB\--input-buffer\fR \fIsize\fR]
+[\fB\--output-buffer\fR \fIsize\fR]
+[\fB\--recursive\fR]
+[\fB\--append\fR]
+[\fB\--force\fR]
+[\fB\--verbose\fR]
+[\fB\--quite\fR]
+[\fB\--skip-empty\fR]
 
 .SH DESCRIPTION
 
 warcsum takes as processes a multimember (or a single member) warcfile
-and produces digest file of all members in the file. The digest file
-consists of a single line describing each response member whose response
-type is http.
+or a directory if operated in recursive mode, and produces digest file 
+of all members in the file. The digest file consists of a single line 
+describing each response member whose response type is http.
 
 A digest line typically contains the following fields:
 <WARC filename> <member offset> <member end> <URI> <date> <hash digest>
 
 .SH OPTIONS
 .TP
-.BR \-i ", " \-\-input =\fIFILE\fR
-Path to warcfile.
+.BR \-i ", " \-\-input =\fIfile\fR
+Path to WARC file or directory.
 .TP
-.BR \-o ", " \-\-ouput =\fIFILE\fR
+.BR \-o ", " \-\-ouput =\fIfile\fR
 Path to digest file.
 .TP
-.BR \-I ", " \-\-input-buffer =\fISIZE\fR
-Initial uncompressed buffer size, if size is not sufficient to fit the headers,
-buffer size is doubled. It can be written in Bytes (default), Kilobytes, 
+.BR \-I ", " \-\-input-buffer =\fIsize\fR
+Initial uncompressed input buffer size, if size is not sufficient to fit the 
+headers, buffer size is doubled. It can be written in Bytes (default), Kilobytes, 
 Megabytes, or Gigabytes, as illustrated in \fBEXAMPLES\fR.
 .TP
-.BR \-O ", " \-\-ouput-buffer =\fISIZE\fR
-Path to digest file.
+.BR \-O ", " \-\-ouput-buffer =\fIsize\fR
+Initial uncompressed output buffer size, if size is not sufficient to fit the 
+headers, buffer size is doubled. It can be written in Bytes (default), Kilobytes, 
+Megabytes, or Gigabytes, as illustrated in \fBEXAMPLES\fR.
 .TP
-.BR \-H ", " \-\-hash =\fIHASHING_ALGORITHM\fR
-Hashing algorithm to be used for hashing the warc member payload.
+.BR \-H ", " \-\-hash =\fIalgorithm\fR
+Algorithm to be used for hashing the warc member payload.
 Possible options are \fImd5\fR, \fIsha1\fR, \fIsha256\fR or \fIsha512\fR. The default
 option is \fIsha1\fR.
 .TP
@@ -75,18 +80,3 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-This program acts as the first step in arcalex project.
-
-Given a compressed multimember warc.gz (or a singlemember warc.gz)
-file,
-this program calculates its digest and appends it to given digests
-file.
-.TP
-Manifest contains following data:
-     1. Warc file name
-     2. Offset (compressed)
-     3. End (compressed)
-     4. URI
-     5. Date
-     6. Digest

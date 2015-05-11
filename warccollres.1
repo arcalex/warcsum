@@ -29,7 +29,7 @@ URL for each WARC file is fetched from mySQL database containing the WARC
 filename and the URL to download that file.
 .TP
 The digests manifest file contains following data:
-     1. Warc file name
+     1. WARC file name
      2. Offset (compressed)
      3. End (compressed)
      4. URI
@@ -37,7 +37,7 @@ The digests manifest file contains following data:
      6. Digest
 .TP
 The extended digest file contains following data:
-     1. Warc file name
+     1. WARC file name
      2. Offset (compressed)
      3. End (compressed)
      4. URI
@@ -70,7 +70,7 @@ Path to input digest file.
 .BR \-o ", " \-\-ouput =\fIFILE\fR
 Path to output digest file.
 .TP
-.BR \-s ", " \-\-db\-settings =\fIFILE\fR
+.BR \-s ", " \-settings =\fIFILE\fR
 Path to the file containing the database settings for mySQL connection.
 .TP
 .BR \-I ", " \-\-input\-buffer=\fINUMBER\fR

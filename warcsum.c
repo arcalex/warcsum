@@ -12,7 +12,7 @@ hash_init (void** hash_ctx, int hash)
   time_t now_hash;
   time (&now_hash);
   /* END OF TIME */
-  //  printf ("HASH INIT\n");
+  //  fprintf (stderr, "HASH INIT\n");
   switch (hash)
     {
     case 1:
@@ -104,7 +104,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       computed_digest[j] = '\0';
       if (args.verbose == 2)
         {
-          printf ("Hash: MD5 \n");
+          fprintf (stderr, "Hash: MD5 \n");
         }
       break;
     case 2:
@@ -119,7 +119,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
       computed_digest[j] = '\0';
       if (args.verbose == 2)
         {
-          printf ("Hash: SHA1 \n");
+          fprintf (stderr, "Hash: SHA1 \n");
         }
       break;
     case 3:
@@ -133,7 +133,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
         }
       if (args.verbose == 2)
         {
-          printf ("Hash: SHA256 \n");
+          fprintf (stderr, "Hash: SHA256 \n");
         }
       computed_digest[j] = '\0';
       break;
@@ -148,7 +148,7 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
         }
       if (args.verbose == 2)
         {
-          printf ("Hash: SHA512 \n");
+          fprintf (stderr, "Hash: SHA512 \n");
         }
       computed_digest[j] = '\0';
       break;
@@ -307,7 +307,7 @@ process_warcheader (z_stream *z, void* vp)
   /* Something went wrong creating member_file */
   if (member_file == NULL)
     {
-      printf ("Could not process header\n");
+      fprintf (stderr, "Could not process header\n");
       return -1;
     }
 
@@ -334,7 +334,7 @@ process_warcheader (z_stream *z, void* vp)
     {
       if (attrs->args.verbose == 2)
         {
-          printf ("Not a WARC member!!\n");
+          fprintf (stderr, "Not a WARC member!!\n");
         }
 
       /* TIME */
@@ -387,7 +387,7 @@ process_warcheader (z_stream *z, void* vp)
           strcpy (type, value);
           if (attrs->args.verbose == 2)
             {
-              printf ("WARC type: %s \n", value);
+              fprintf (stderr, "WARC type: %s \n", value);
             }
         }
       else if (!strcmp_case_insensitive (key, WARC_PAYLOAD_DIGEST)
@@ -418,7 +418,7 @@ process_warcheader (z_stream *z, void* vp)
 
           if (attrs->args.verbose == 2)
             {
-              printf ("WARC payload digest: %s:%s \n", precomputed_hash,
+              fprintf (stderr, "WARC payload digest: %s:%s \n", precomputed_hash,
                       precomputed_digest);
             }
           free (pch);
@@ -428,7 +428,7 @@ process_warcheader (z_stream *z, void* vp)
           strcpy (attrs->DATE, value);
           if (attrs->args.verbose == 2)
             {
-              printf ("WARC date: %s \n", value);
+              fprintf (stderr, "WARC date: %s \n", value);
             }
         }
       else if (!strcmp_case_insensitive (key, WARC_TARGET_URI))
@@ -436,7 +436,7 @@ process_warcheader (z_stream *z, void* vp)
           strcpy (attrs->URI, value);
           if (attrs->args.verbose == 2)
             {
-              printf ("WARC target uri: %s \n", value);
+              fprintf (stderr, "WARC target uri: %s \n", value);
             }
         }
       else if (!strcmp_case_insensitive (key, CONTENT_TYPE))
@@ -449,7 +449,7 @@ process_warcheader (z_stream *z, void* vp)
               content_type[strlen (pch)] = '\0';
               if (attrs->args.verbose == 2)
                 {
-                  printf ("Content-Type: %s \n", content_type);
+                  fprintf (stderr, "Content-Type: %s \n", content_type);
                 }
             }
         }
@@ -480,7 +480,7 @@ process_warcheader (z_stream *z, void* vp)
     {
       if (attrs->args.verbose == 2)
         {
-          printf ("WARC-Type is not \"response\" \n");
+          fprintf (stderr, "WARC-Type is not \"response\" \n");
         }
 
       /* TIME */
@@ -497,7 +497,7 @@ process_warcheader (z_stream *z, void* vp)
     {
       if (attrs->args.verbose == 2)
         {
-          printf ("Content-type is not \"application/http\" \n");
+          fprintf (stderr, "Content-type is not \"application/http\" \n");
         }
 
       /* TIME */
@@ -524,7 +524,7 @@ process_warcheader (z_stream *z, void* vp)
         {
           if (attrs->args.verbose == 2)
             {
-              printf ("Stored digest:\t%s:%s \n",
+              fprintf (stderr, "Stored digest:\t%s:%s \n",
                       attrs->args.hash_char, attrs->stored_digest);
             }
         }
@@ -551,7 +551,7 @@ process_httpheader (z_stream *z, void *vp, int header_offset)
                           "r");
   if (member_file == NULL)
     {
-      printf ("Could not process HTTP header\n");
+      fprintf (stderr, "Could not process HTTP header\n");
       return_value = -1;
     }
   else
@@ -812,8 +812,8 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
 {
   if (ws->args.verbose == 2)
     {
-      printf ("\n\n");
-      printf ("OFFSET: %ld\n", ftell (f_in));
+      fprintf (stderr, "\n\n");
+      fprintf (stderr, "OFFSET: %ld\n", ftell (f_in));
     }
 
   /* Reset mydata */
@@ -861,7 +861,7 @@ process_member (FILE* f_in, FILE* f_out, z_stream *z,
 
       if (ws->args.verbose == 2)
         {
-          printf ("%s\n", ws->manifest);
+          fprintf (stderr, "%s\n", ws->manifest);
         }
 
       // write digest to digests file
@@ -883,7 +883,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
 {
   if (ws->args.verbose)
     {
-      printf ("%s\n", in);
+      fprintf (stderr, "%s\n", in);
     }
   /* Open file */
   int file_size;
@@ -907,7 +907,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
 
   else if (!S_ISREG (ss.st_mode))
     {
-      printf ("%s is not a regular file.\n", in);
+      fprintf (stderr, "%s is not a regular file.\n", in);
       fclose (f_in);
       return 1;
     }
@@ -947,7 +947,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
         {
           if (ws->args.verbose == 2)
             {
-              printf ("Chunk size not sufficient\n"
+              fprintf (stderr, "Chunk size not sufficient\n"
                       "Doubling chunk size\n"
                       "%u %u\n",
                       ws->START, ws->effective_out);
@@ -985,7 +985,7 @@ process_file (char *in, FILE* f_out, z_stream* z, struct warcsum_struct* ws)
             }
           else
             {
-              printf ("Both in buffer and out buffer reached maximum "
+              fprintf (stderr, "Both in buffer and out buffer reached maximum "
                       "allowed size!\n"
                       "Skipping member.\n");
             }
@@ -1048,7 +1048,7 @@ process_directory (char* input_dir, FILE* f_out, z_stream* z, struct warcsum_str
             {
               if (ws->args.verbose == 2)
                 {
-                  printf ("%s is neither a regular file nor a directory!\n",
+                  fprintf (stderr, "%s is neither a regular file nor a directory!\n",
                           ent->d_name);
                 }
             }
@@ -1334,7 +1334,7 @@ main (int argc, char **argv)
     }
   if (f_out == NULL)
     {
-      printf ("Unable to open output file: %s\n", ws.args.f_output);
+      fprintf (stderr, "Unable to open output file: %s\n", ws.args.f_output);
       return 1;
     }
   z_stream z;

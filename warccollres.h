@@ -77,6 +77,8 @@
 #define false 0
 #define bool _Bool
 
+clock_t start, end;
+
 static struct options {
     size_t verbose;
     bool memory;
@@ -111,6 +113,8 @@ static struct global {
     Record *current_record, *record_cluster;
     
     MYSQL *conn;
+    
+    double time_compare, time_download, time_database;
     
 } global;
 
@@ -176,6 +180,9 @@ inflate_record_member(Record *record);
 
 void
 process_chunk(z_stream *z, int chunk, void *vp);
+
+bool
+process_cluster();
 
 void
 global_init();

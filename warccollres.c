@@ -61,13 +61,12 @@
 
 #include "warccollres.h"
 
-clock_t start, end;
-double compareTime = 0, downloadTime = 0, databaseTime = 0;
-
 Record*
 create_record (char * line)
 {
-  /* The Record constructor */
+  /*
+   * The Record constructor
+   */
   Record *object = calloc (1, sizeof (Record));
   object->next = NULL;
   object->next_collision = NULL;
@@ -77,7 +76,9 @@ create_record (char * line)
   object->compressed_member_file = NULL;
   object->member_size = 0;
 
-  /* Parsing the global.input line and storing its token in the Record structure */
+  /*
+   * Parsing the input line and storing its token in the Record structure
+   */
   char* token = NULL;
   token = strtok (line, " ");
   object->filename = calloc (strlen (token) + 1, sizeof (char));
@@ -144,12 +145,19 @@ destroy_record (Record *object)
 void
 dump_hash_cluster ()
 {
-  /* Dumping the previous hash cluster to the global.output file */
+  /*
+   * Dump the previous hash cluster to the global.output file
+   */
   Record *tempColl = global.record_cluster;
-  /* Dumping the collided records */
+  
+  /*
+   * Dump the collided records
+   */
   while (tempColl != NULL)
     {
-      /* Dumping the similar records */
+      /*
+       * Dump the similar records to the output file
+       */
       Record *tempRec = tempColl;
       while (tempRec != NULL)
         {
@@ -173,7 +181,10 @@ dump_hash_cluster ()
 
             }
           fprintf (global.output, "\n");
-          /* Preparing the next record */
+          
+          /*
+           * Prepare the next record
+           */
           tempRec = tempRec->next;
         }
       tempColl = tempColl->next_collision;
@@ -222,7 +233,10 @@ mySQL_connect (config_t *db_cfg)
     }
 
   global.conn = mysql_init (NULL);
-  /* global.connect to database */
+  
+  /* 
+   * Connect to database
+   */
   if (!mysql_real_connect (global.conn, server,
                            user, password, database, 0, NULL, 0))
     {
@@ -239,7 +253,9 @@ get_url_from_db (char *filename, char ***url)
   MYSQL_RES *res;
   MYSQL_ROW row;
 
-  /* send SQL query */
+  /*
+   * Construct the SQL query
+   */
   char temp[] = "SELECT url FROM `path_index` WHERE filename = '";
   char *query = (char*) calloc (strlen (temp) + strlen (filename) + 2,
                                 sizeof (char));
@@ -290,7 +306,9 @@ compare_records (Record *first, Record * second)
 {
   long firstIndex = 0, secondIndex = 0;
 
-  //Seeking to the end of the WARC header of the first record.
+  /*
+   * Seeking to the end of the WARC header of the first record
+   */
   for (firstIndex;
           first->member_memory->memory[firstIndex] != '\n' ||
           (first->member_memory->memory[firstIndex + 1] != '\n' &&
@@ -300,7 +318,10 @@ compare_records (Record *first, Record * second)
     firstIndex += 2;
   else
     firstIndex += 3;
-  //Seeking to the end of the HTTP header of the first record.
+  
+  /*
+   * Seeking to the end of the HTTP header of the first record
+   */
   for (firstIndex;
           first->member_memory->memory[firstIndex] != '\n' ||
           (first->member_memory->memory[firstIndex + 1] != '\n' &&
@@ -310,7 +331,10 @@ compare_records (Record *first, Record * second)
     firstIndex += 2;
   else
     firstIndex += 3;
-  //Seeking to the end of the WARC header of the second record.
+  
+  /*
+   * Seek to the end of the WARC header of the second record
+   */
   for (secondIndex;
           second->member_memory->memory[secondIndex] != '\n' ||
           (second->member_memory->memory[secondIndex + 1] != '\n' &&
@@ -320,7 +344,10 @@ compare_records (Record *first, Record * second)
     secondIndex += 2;
   else
     secondIndex += 3;
-  //Seeking to the end of the HTTP header of the second record.
+  
+  /*
+   * Seek to the end of the HTTP header of the second record
+   */
   for (secondIndex;
           second->member_memory->memory[secondIndex] != '\n' ||
           (second->member_memory->memory[secondIndex + 1] != '\n' &&
@@ -331,7 +358,9 @@ compare_records (Record *first, Record * second)
   else
     secondIndex += 3;
 
-
+  /*
+   * Compare the content of the two WARC members
+   */
   if ((first->member_memory->size - firstIndex) !=
       (second->member_memory->size - secondIndex))
     return false;
@@ -345,8 +374,6 @@ compare_records (Record *first, Record * second)
   return true;
 }
 
-//TODO
-
 bool
 compare_records_file (Record *first, Record * second)
 {
@@ -356,7 +383,9 @@ compare_records_file (Record *first, Record * second)
   rewind (first->member_file);
   rewind (second->member_file);
 
-  //Seeking to the end of the WARC header of the first record.
+  /*
+   * Seek to the end of the WARC header of the first record
+   */
   while (!feof (first->member_file) &&
          (read = getline (&line, &len, first->member_file)) > 0)
     {
@@ -369,7 +398,9 @@ compare_records_file (Record *first, Record * second)
   free (line);
   line = NULL;
 
-  //Seeking to the end of the HTTP header of the first record.
+  /*
+   * Seek to the end of the HTTP header of the first record
+   */
   while (!feof (first->member_file) &&
          (read = getline (&line, &len, first->member_file)) > 0)
     {
@@ -384,7 +415,9 @@ compare_records_file (Record *first, Record * second)
   line = NULL;
   len = 0;
 
-  //Seeking to the end of the WARC header of the second record.
+  /*
+   * Seek to the end of the WARC header of the second record
+   */
   while (!feof (second->member_file) &&
          (read = getline (&line, &len, second->member_file)) > 0)
     {
@@ -398,7 +431,9 @@ compare_records_file (Record *first, Record * second)
   line = NULL;
   len = 0;
 
-  //Seeking to the end of the HTTP header of the second record.
+  /*
+   * Seek to the end of the HTTP header of the second record
+   */
   while (!feof (second->member_file) &&
          (read = getline (&line, &len, second->member_file)) > 0)
     {
@@ -416,13 +451,19 @@ compare_records_file (Record *first, Record * second)
   firstIndex = ftell (first->member_file);
   secondIndex = ftell (second->member_file);
 
-  //Compare the content size, if the size matches, then continue the comparison.
+  /*
+   * Compare the content size, if the size matches, then continue
+   * the comparison.
+   */ 
   if ((first->member_size - firstIndex) != (second->member_size - secondIndex))
     return false;
 
   firstBuffer = calloc (options.output_buffer, sizeof (char));
   secondBuffer = calloc (options.output_buffer, sizeof (char));
-
+  
+  /*
+   * Compare the content of the two WARC members
+   */
   while (!(feof (first->member_file) && feof (first->member_file)))
     {
       read = fread (firstBuffer, 1, options.output_buffer, first->member_file);
@@ -444,8 +485,6 @@ compare_records_file (Record *first, Record * second)
 
   return true;
 }
-
-//TODO
 
 void
 process_chunk (z_stream *z, int chunk, void *vp)
@@ -472,7 +511,7 @@ process_chunk (z_stream *z, int chunk, void *vp)
  * Inflated the downloaded WARC member to either a file, or memory structure if
  * the --memory-only option was used.
  * 
- * Takes as global.input a pointer to the whole record structure the contains the
+ * Takes as input a pointer to the whole record structure the contains the
  * compressed WARC member.
  * 
  * Returns a true if the inflation process was successful, and false otherwise.
@@ -483,7 +522,10 @@ inflate_record_member (Record *record)
 {
   z_stream z;
   gzmInflateInit (&z);
-  //extra byte for the null terminator
+
+  /*
+   * extra byte for the null terminator
+   */
   z.next_in = calloc (options.input_buffer + 1, sizeof (Bytef));
   z.next_out = calloc (options.output_buffer + 1, sizeof (Bytef));
 
@@ -548,15 +590,16 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 
       if (record->compressed_member_memory->memory == NULL)
         {
-          /* out of memory! */
-          printf ("not enough memory (realloc returned NULL)\n");
+          /*
+           * Not enough memory
+           */
+          fprintf (stderr, "Error: Not enough memory to download the file.\n");
           return 0;
         }
       size_t size = record->compressed_member_memory->size;
       memcpy (&(record->compressed_member_memory->memory[size]),
               contents, realsize);
       record->compressed_member_memory->size += realsize;
-      //record->compressed_member_memory->memory[record->compressed_member_memory->size] = 0;
     }
   else
     {
@@ -583,9 +626,8 @@ http_download_file (char **url, size_t url_count, Record *record)
               (MemoryStruct *) calloc (1, sizeof (MemoryStruct));
 
       /*
-       *******************************************
-       * Will be grown as needed by the realloc. *
-       *******************************************
+       * Allocate the memory structure with initial array of size 1
+       * and it will grow according to size of the WARC member.
        */
       record->compressed_member_memory->memory =
               (char*) calloc (1, sizeof (char));
@@ -594,9 +636,7 @@ http_download_file (char **url, size_t url_count, Record *record)
   else
     {
       /*
-       **********************************************
-       * Write the compressed member to a temp file *
-       **********************************************
+       * Write the compressed member to a temp file
        */
       if ((record->compressed_member_file = tmpfile ()) == NULL)
         {
@@ -605,13 +645,19 @@ http_download_file (char **url, size_t url_count, Record *record)
         }
     }
 
-  /* init the curl session */
+  /* 
+   * Initialize the curl session
+   */
   curl_handle = curl_easy_init ();
 
-  /* send all data to this function  */
+  /*
+   * Specify the callback function for cURL
+   */
   curl_easy_setopt (curl_handle, CURLOPT_WRITEFUNCTION, write_memory_callback);
 
-  /* we pass our 'chunk' struct to the callback function */
+  /*
+   * Specify the structure to write the data into for cURL
+   */
   curl_easy_setopt (curl_handle, CURLOPT_WRITEDATA, (void *) record);
 
   curl_easy_setopt (curl_handle, CURLOPT_RANGE, range);
@@ -624,9 +670,14 @@ http_download_file (char **url, size_t url_count, Record *record)
 
   for (i = 0; i < url_count; i++)
     {
-      /* specify URL to get */
+      /* 
+       * specify URL to get
+       */
       curl_easy_setopt (curl_handle, CURLOPT_URL, url[i]);
-      /* get it! */
+
+      /*
+       * Attempt to download the WARC member
+       */
       res = curl_easy_perform (curl_handle);
 
       /*
@@ -640,7 +691,9 @@ http_download_file (char **url, size_t url_count, Record *record)
     }
 
 
-  /* check for errors */
+  /* 
+   * check for download errors
+   */
   if (!downloaded)
     {
       fprintf (stderr, "curl_easy_perform() failed: %s\n",
@@ -652,11 +705,16 @@ http_download_file (char **url, size_t url_count, Record *record)
       if (!options.memory)
         rewind (record->compressed_member_file);
 
-      /*inflate here. */
+      /*
+       * inflate the WARC member.
+       */
       if (!inflate_record_member (record))
         return false;
     }
-  /* cleanup curl stuff */
+
+  /* 
+   * cleanup curl handle
+   */
   curl_easy_cleanup (curl_handle);
 
   free (range);
@@ -667,17 +725,15 @@ http_download_file (char **url, size_t url_count, Record *record)
 bool
 download_record (Record *record)
 {
-  /* 
-   **************************************************************
-   * Obtain the URL where the file is located from the database *
-   **************************************************************
+  /*
+   * Obtain the URL where the file is located from the database
    */
   char **url = NULL;
   size_t url_count = 0;
   start = clock ();
   url_count = get_url_from_db (record->filename, &url);
   end = clock ();
-  databaseTime += ((double) (end - start)) / CLOCKS_PER_SEC;
+  global.time_database += ((double) (end - start)) / CLOCKS_PER_SEC;
   if (url == NULL)
     {
       if (!options.verbose)
@@ -688,16 +744,14 @@ download_record (Record *record)
     }
 
   /*
-   ***************************************
-   * Get the member from the HTTP server *
-   ***************************************
+   * Get the member from the HTTP server
    */
   start = clock ();
   if (!http_download_file (url, url_count, record))
     return false;
   end = clock ();
 
-  downloadTime += ((double) (end - start)) / CLOCKS_PER_SEC;
+  global.time_download += ((double) (end - start)) / CLOCKS_PER_SEC;
   free (url);
   if (record->member_size == 0)
     {
@@ -712,9 +766,7 @@ download_record (Record *record)
 }
 
 /*
- *******************
- * Display version *
- *******************
+ * Display version message
  */
 void
 version ()
@@ -724,51 +776,45 @@ version ()
 }
 
 /*
- *****************
- * Display usage *
- *****************
+ * Display usage message
  */
-
 void
 usage ()
 {
-  fprintf (stderr, "Usage: warccollres [-i | --global.input <filename>]"
-           "[-o | --global.output <filename>] [-s | --db-settings <filename>] "
-           "[-p | --proc] [-I | --global.input-buffer <global.input buffer size>] "
-           "[-O | --global.output-buffer <global.output buffer size>] "
+  fprintf (stderr, "Usage: warccollres [-i | --input <filename>]"
+           "[-o | --output <filename>] [-s | --db-settings <filename>] "
+           "[-p | --proc] [-I | --input-buffer <input buffer size>] "
+           "[-O | --output-buffer <output buffer size>] "
            "[-m | --memory-only][-q | --quiet] [-v | --verbose]\n");
 }
 
 /*
- *****************
- * Display help *
- *****************
+ * Display help message
  */
-
 void
 help ()
 {
   printf ("Usage\n");
 
   printf ("\twarccollres [-i <filename>] [-o <filename>] [-s <filename>] "
-          "[-I <global.input buffer size>] [-O <global.output buffer size>] -p -m -v\n\n");
+          "[-I <input buffer size>] [-O <output buffer size>] -p -m -v\n\n");
 
   printf ("Options\n");
 
-  printf ("\t-i, --global.input=FILE\n");
+  printf ("\t-i, --input=FILE\n");
   printf ("\t\tPath to digests manifest file.\n\n");
 
-  printf ("\t-o, --global.output=FILE\n");
+  printf ("\t-o, --output=FILE\n");
   printf ("\t\tPath to extended digests manifest file.\n\n");
 
   printf ("\t-s, --db-settings=FILE\n");
   printf ("\t\tPath to the database settings file.\n\n");
 
-  printf ("\t-I, --global.input-buffer=NUMBER\n");
+  printf ("\t-I, --input-buffer=NUMBER\n");
   printf ("\t\tsize of the buffer used to read/write compressed temp "
           "files.\n\n");
 
-  printf ("\t-O, --global.output-buffer=NUMBER\n");
+  printf ("\t-O, --output-buffer=NUMBER\n");
   printf ("\t\tsize of the buffer used to read/write inflated temp files.\n\n");
 
   printf ("\t-p, --proc\n");
@@ -938,6 +984,112 @@ process_args (int argc, char** argv)
     }
 }
 
+/*
+ * Process a record with the same hash as the current hash cluster
+ */
+bool
+process_cluster ()
+{
+
+  /*
+   * Download the first WARC member in the hash cluster if
+   * it was not downloaded.
+   */
+  if (global.record_cluster->member_size == 0)
+    if (!download_record (global.record_cluster))
+      {
+        global.total_skipped++;
+        global.record_cluster = NULL;
+        return false;
+      }
+
+  /*
+   * Download the new WARC member in the hash cluster 
+   */
+  if (!download_record (global.current_record))
+    {
+      global.total_skipped++;
+      global.current_record = NULL;
+      return false;
+    }
+
+
+  /*
+   * Check for collisions
+   */
+  Record *collRec = global.record_cluster;
+  bool exist = false;
+  while (!exist)
+    {
+      start = clock ();
+
+      if ((options.memory &&
+           compare_records (collRec, global.current_record)) ||
+          (!options.memory &&
+           compare_records_file (collRec, global.current_record)))
+        {
+          end = clock ();
+          global.time_compare += ((double) (end - start)) /
+                  CLOCKS_PER_SEC;
+          if (options.verbose > 1)
+            printf ("Duplicate was found at line %ld.\n"
+                    , global.line_no);
+
+          /* 
+           * Adding the current record to the list
+           */
+          Record * sameRec = collRec;
+
+          /* 
+           * Getting the last similar record
+           */
+          while (sameRec->next != NULL)
+            sameRec = sameRec->next;
+          sameRec->next = global.current_record;
+          global.current_record->ext = sameRec->ext;
+          global.current_record->copy_no = sameRec->copy_no + 1;
+
+          /* 
+           * Removing the data of the duplicate record
+           */
+          if (options.memory)
+            {
+
+              free (global.current_record->member_memory->memory);
+              global.current_record->member_memory->size = 0;
+            }
+          else
+            {
+              if (fclose (global.current_record->member_file) != 0)
+                fprintf (stderr, "Error: Could not close temp "
+                         "file.");
+              global.current_record->member_file = NULL;
+            }
+          global.total_duplicates++;
+          exist = true;
+        }
+
+      if (collRec->next_collision == NULL)
+        break;
+      collRec = collRec->next_collision;
+    }
+  if (!exist)
+    {
+      if (options.verbose)
+        printf ("Collision was detected at line %ld.\n"
+                , global.line_no);
+      /* 
+       * Adding the record to the list of collisions
+       */
+      collRec->next_collision = global.current_record;
+      global.current_record->ext = collRec->ext + 1;
+      global.current_record->copy_no = 1;
+      global.total_collisions++;
+    }
+
+  return true;
+}
+
 void
 global_init ()
 {
@@ -947,9 +1099,9 @@ global_init ()
   if (!global.input)
     {
       fprintf (stderr, "Error: Couldn't open the global.input file %s.\n"
-              "Aborting...\n"
+               "Aborting...\n"
                , options.iFile);
-      exit(EXIT_FAILURE);
+      exit (EXIT_FAILURE);
     }
   else
     {
@@ -958,7 +1110,9 @@ global_init ()
 
       config_init (&db_cfg);
 
-      /* Read the file. If there is an error, report it and exit. */
+      /* 
+       * Read the file. If there is an error, report it and exit.
+       */
       if (!config_read_file (&db_cfg, options.dbFile))
         {
           fprintf (stderr, "%s:%d - %s\n", config_error_file (&db_cfg),
@@ -967,7 +1121,9 @@ global_init ()
           exit (EXIT_FAILURE);
         }
 
-      /* global.connecting to the database where the URLs are available */
+      /* 
+       * connecting to the database where the URLs are available
+       */
       if (global.conn = mySQL_connect (&db_cfg))
         config_destroy (&db_cfg);
       else
@@ -979,7 +1135,10 @@ global_init ()
         }
 
       free (options.dbFile);
-      /* Start processing the global.input file */
+
+      /* 
+       * Start processing the global.input file
+       */
       global.output = fopen (options.oFile, "w");
       free (options.oFile);
       global.current_line = NULL;
@@ -991,7 +1150,14 @@ global_init ()
       global.total_skipped = 0;
       global.current_record = NULL;
       global.record_cluster = NULL;
-      /* initialize the global curl session */
+
+      global.time_compare = 0;
+      global.time_download = 0;
+      global.time_database = 0;
+
+      /*
+       * initialize the global curl session
+       */
       curl_global_init (CURL_GLOBAL_ALL);
     }
 }
@@ -1002,12 +1168,16 @@ cleanup ()
   if (options.verbose)
     printf ("Cleaning up...\n");
 
-  /* Global clean up for libcurl */
+  /* 
+   * Global clean up for libcurl
+   */
   curl_global_cleanup ();
 
   dump_hash_cluster (global.output, global.record_cluster);
 
-  /* Destroying the records of the remaining hash cluster */
+  /* 
+   * Destroying the records of the remaining hash cluster
+   */
   destroy_record (global.record_cluster);
   global.record_cluster = NULL;
   mysql_close (global.conn);
@@ -1040,9 +1210,9 @@ print_stats ()
           , global.total_collisions * 100.0 / global.total_records);
   printf ("Processing time: %f seconds\nNetwork time: %f seconds\n"
           "Database time: %f seconds\n"
-          , compareTime
-          , downloadTime
-          , databaseTime);
+          , global.time_compare
+          , global.time_download
+          , global.time_database);
 }
 
 int
@@ -1050,8 +1220,8 @@ main (int argc, char** argv)
 {
 
   process_args (argc, argv);
-  
-  global_init();
+
+  global_init ();
 
   size_t len = 0;
 
@@ -1059,14 +1229,17 @@ main (int argc, char** argv)
     {
       global.line_no++;
       global.current_line[strlen (global.current_line) - 1] = '\0';
-      global.current_line = realloc (global.current_line, strlen (global.current_line) + 1);
+      global.current_line = realloc (global.current_line,
+                                     strlen (global.current_line) + 1);
       global.current_record = create_record (global.current_line);
       free (global.current_line);
       len = 0;
       global.current_line = NULL;
 
 
-      /* Adding the first record to the hash cluster */
+      /* 
+       * Adding the first record to the hash cluster
+       */
       if (global.record_cluster == NULL)
         {
           global.record_cluster = global.current_record;
@@ -1080,97 +1253,12 @@ main (int argc, char** argv)
           /* Check for a new hash */
           if (!strcmp (global.current_record->hash, global.current_hash))
             {
-
               /*
-               *********************************************************
-               * Download the first WARC member in the hash cluster if *
-               * it was not downloaded.                                *
-               *********************************************************
+               * Same hash was found.
+               * Check if whether the record is a duplicate or a collision.
                */
-
-              if (global.record_cluster->member_size == 0)
-                if (!download_record (global.record_cluster))
-                  {
-                    global.total_skipped++;
-                    global.record_cluster = NULL;
-                    continue;
-                  }
-
-              /*
-               *********************************************************
-               * Download the first WARC member in the hash cluster if *
-               * it was not downloaded.                                *
-               *********************************************************
-               */
-
-              if (!download_record (global.current_record))
-                {
-                  global.total_skipped++;
-                  global.current_record = NULL;
-                  continue;
-                }
-
-
-              /* Check for collisions */
-              Record *collRec = global.record_cluster;
-              bool exist = false;
-              while (!exist)
-                {
-                  start = clock ();
-
-                  if ((options.memory &&
-                       compare_records (collRec, global.current_record)) ||
-                      (!options.memory &&
-                       compare_records_file (collRec, global.current_record)))
-                    {
-                      end = clock ();
-                      compareTime += ((double) (end - start)) /
-                              CLOCKS_PER_SEC;
-                      if (options.verbose > 1)
-                        printf ("Duplicate was found at line %ld.\n"
-                                , global.line_no);
-                      /* Adding the current record to the list */
-                      Record * sameRec = collRec;
-                      /* Getting the last similar record */
-                      while (sameRec->next != NULL)
-                        sameRec = sameRec->next;
-                      sameRec->next = global.current_record;
-                      global.current_record->ext = sameRec->ext;
-                      global.current_record->copy_no = sameRec->copy_no + 1;
-
-                      /* Removing the data of the duplicate record */
-                      if (options.memory)
-                        {
-
-                          free (global.current_record->member_memory->memory);
-                          global.current_record->member_memory->size = 0;
-                        }
-                      else
-                        {
-                          if (fclose (global.current_record->member_file) != 0)
-                            fprintf (stderr, "Error: Could not close temp "
-                                     "file.");
-                          global.current_record->member_file = NULL;
-                        }
-                      global.total_duplicates++;
-                      exist = true;
-                    }
-
-                  if (collRec->next_collision == NULL)
-                    break;
-                  collRec = collRec->next_collision;
-                }
-              if (!exist)
-                {
-                  if (options.verbose)
-                    printf ("Collision was detected at line %ld.\n"
-                            , global.line_no);
-                  /* Adding the record to the list of collisions */
-                  collRec->next_collision = global.current_record;
-                  global.current_record->ext = collRec->ext + 1;
-                  global.current_record->copy_no = 1;
-                  global.total_collisions++;
-                }
+              if (!process_cluster ())
+                continue;
 
             }
           else
@@ -1179,7 +1267,10 @@ main (int argc, char** argv)
                 printf ("Processing new hash cluster at line %ld.\n",
                         global.line_no);
               dump_hash_cluster ();
-              /* Destroying the records of the old hash cluster */
+
+              /* 
+               * Destroying the records of the old hash cluster
+               */
               destroy_record (global.record_cluster);
               global.record_cluster = NULL;
               global.record_cluster = global.current_record;
@@ -1191,7 +1282,9 @@ main (int argc, char** argv)
         }
     }
 
-  /* Cleaning up after the remaining hash cluster */
+  /* 
+   * Cleaning up after the remaining hash cluster
+   */
   cleanup ();
 
   /*

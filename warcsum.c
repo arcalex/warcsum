@@ -3,67 +3,6 @@
 double time_hash = 0, time_inflate = 0, time_parse = 0;
 
 /*
- *  Mapping base32 digits to binary 
- */
-const char * const b32_to_bin[] = {
-  "00000",
-  "00001",
-  "00010",
-  "00011",
-  "00100",
-  "00101",
-  "00110",
-  "00111",
-  "01000",
-  "01001",
-  "01010",
-  "01011",
-  "01100",
-  "01101",
-  "01110",
-  "01111",
-  "10000",
-  "10001",
-  "10010",
-  "10011",
-  "10100",
-  "10101",
-  "10110",
-  "10111",
-  "11000",
-  "11001",
-  "11010",
-  "11011",
-  "11100",
-  "11101",
-  "11110",
-  "11111"
-};
-
-
-/*
- *  Mapping binary digits to base16 
- */
-const char const bin_to_hex[] = {
-  '0',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  'a',
-  'b',
-  'c',
-  'd',
-  'e',
-  'f'
-};
-
-/*
  *  Initializes hash_ctx struct 
  */
 int
@@ -229,6 +168,28 @@ hash_final (void* hash_ctx, int hash, char* computed_digest,
 }
 
 /*
+ * Converts 5 bits integers to binary char array
+ */
+int
+int_to_bin (int n, char* out)
+{
+  int i = 5;
+  while (i--)
+    {
+      if (n % 2)
+        {
+          out[i] = '1';
+        }
+      else
+        {
+          out[i] = '0';
+        }
+      n /= 2;
+    }
+  return 0;
+}
+
+/*
  * Converts base32 numbers following RFC 4648 to hexadecimal numbers
  */
 int
@@ -248,11 +209,17 @@ base32_to_hex (char* in, char* out)
     {
       if ((in[i] >= 'A' && in[i] <= 'Z'))
         {
-          strcpy (&binary[i * 5], b32_to_bin[in[i] - 'A']);
+          char c[6];
+          c[5] = '\0';
+          int_to_bin (in[i] - 'A', c);
+          strcpy (&binary[i * 5], c);
         }
       else if (in[i] >= '2' && in[i] <= '7')
         {
-          strcpy (&binary[i * 5], b32_to_bin[in[i] - ('2' - 26)]);
+          char c[6];
+          c[5] = '\0';
+          int_to_bin (in[i] - ('2' - 26), c);
+          strcpy (&binary[i * 5], c);
         }
       else
         {
@@ -276,7 +243,7 @@ base32_to_hex (char* in, char* out)
               t |= (1 << (3 - j));
             }
         }
-      out[s] = bin_to_hex[t];
+      out[s] = t < 10 ? t + '0' : t - 10 + 'a';
     }
   out[40] = '\0';
   return 0;

@@ -133,6 +133,11 @@ int hash_final (void* hash_ctx, int hash,
 int hash_update (unsigned char* input, int algo, int lSize, void* hash_ctx);
 
 /*
+ * Converts 5 bits integers to binary char array
+ */
+int int_to_bin (int n, char* out);
+
+/*
  * Converts base32 numbers following RFC 4648 to hexadecimal numbers
  */
 int base32_to_hex (char* input, char* output);

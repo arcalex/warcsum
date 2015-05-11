@@ -86,7 +86,7 @@ static struct options {
     
     unsigned int input_buffer, output_buffer;
 
-    char *iFile, *oFile, *dbFile;
+    char *input_file, *output_file, *settings_file;
 } options;
 
 typedef struct MemoryStruct {
@@ -121,7 +121,7 @@ static struct global {
 static struct option long_options[] = {
     {"input", required_argument, 0, 'i'},
     {"output", required_argument, 0, 'o'},
-    {"db-settings", required_argument, 0, 's'},
+    {"settings", required_argument, 0, 's'},
     {"proc", no_argument, 0, 'p'},
     {"input-buffer", required_argument, 0, 'I'},
     {"output-buffer", required_argument, 0, 'O'},

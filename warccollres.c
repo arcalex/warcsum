@@ -26,7 +26,7 @@
  * file name and the URL to download that file.
  * 
  * The digests manifest file contains following data:
- *     1. Warc file name
+ *     1. WARC file name
  *     2. Offset (compressed)
  *     3. End (compressed)
  *     4. URI
@@ -34,7 +34,7 @@
  *     6. Digest
  * 
  * The extended digest file contains following data:
- *     1. Warc file name
+ *     1. WARC file name
  *     2. Offset (compressed)
  *     3. End (compressed)
  *     4. URI
@@ -149,7 +149,7 @@ dump_hash_cluster ()
    * Dump the previous hash cluster to the global.output file
    */
   Record *tempColl = global.record_cluster;
-  
+
   /*
    * Dump the collided records
    */
@@ -181,7 +181,7 @@ dump_hash_cluster ()
 
             }
           fprintf (global.output, "\n");
-          
+
           /*
            * Prepare the next record
            */
@@ -233,7 +233,7 @@ mySQL_connect (config_t *db_cfg)
     }
 
   global.conn = mysql_init (NULL);
-  
+
   /* 
    * Connect to database
    */
@@ -318,7 +318,7 @@ compare_records (Record *first, Record * second)
     firstIndex += 2;
   else
     firstIndex += 3;
-  
+
   /*
    * Seeking to the end of the HTTP header of the first record
    */
@@ -331,7 +331,7 @@ compare_records (Record *first, Record * second)
     firstIndex += 2;
   else
     firstIndex += 3;
-  
+
   /*
    * Seek to the end of the WARC header of the second record
    */
@@ -344,7 +344,7 @@ compare_records (Record *first, Record * second)
     secondIndex += 2;
   else
     secondIndex += 3;
-  
+
   /*
    * Seek to the end of the HTTP header of the second record
    */
@@ -454,13 +454,13 @@ compare_records_file (Record *first, Record * second)
   /*
    * Compare the content size, if the size matches, then continue
    * the comparison.
-   */ 
+   */
   if ((first->member_size - firstIndex) != (second->member_size - secondIndex))
     return false;
 
   firstBuffer = calloc (options.output_buffer, sizeof (char));
   secondBuffer = calloc (options.output_buffer, sizeof (char));
-  
+
   /*
    * Compare the content of the two WARC members
    */
@@ -567,7 +567,7 @@ inflate_record_member (Record *record)
                      options.output_buffer, process_chunk, record);
 
       if (fclose (record->compressed_member_file))
-        fprintf (stderr, "Error: Could not close temp file.");
+        fprintf (stderr, "Error: Could not close temp file.\n");
       record->compressed_member_file = NULL;
     }
   inflateEnd (&z);
@@ -781,11 +781,11 @@ version ()
 void
 usage ()
 {
-  fprintf (stderr, "Usage: warccollres [-i | --input <filename>]"
-           "[-o | --output <filename>] [-s | --db-settings <filename>] "
-           "[-p | --proc] [-I | --input-buffer <input buffer size>] "
-           "[-O | --output-buffer <output buffer size>] "
-           "[-m | --memory-only][-q | --quiet] [-v | --verbose]\n");
+  fprintf (stderr, "Usage: warccollres --input FILE --output FILE "
+           "--settings FILE "
+           "[--proc] [--input-buffer SIZE] "
+           "[--output-buffer SIZE] [--memory-only] [--quiet] [--verbose] "
+           "[--version] [--help]\n");
 }
 
 /*
@@ -796,19 +796,10 @@ help ()
 {
   printf ("Usage\n");
 
-  printf ("\twarccollres [-i <filename>] [-o <filename>] [-s <filename>] "
-          "[-I <input buffer size>] [-O <output buffer size>] -p -m -v\n\n");
+  printf ("\twarccollres [options] --input FILE --output FILE "
+          "--settings FILE\n\n");
 
   printf ("Options\n");
-
-  printf ("\t-i, --input=FILE\n");
-  printf ("\t\tPath to digests manifest file.\n\n");
-
-  printf ("\t-o, --output=FILE\n");
-  printf ("\t\tPath to extended digests manifest file.\n\n");
-
-  printf ("\t-s, --db-settings=FILE\n");
-  printf ("\t\tPath to the database settings file.\n\n");
 
   printf ("\t-I, --input-buffer=NUMBER\n");
   printf ("\t\tsize of the buffer used to read/write compressed temp "
@@ -842,9 +833,9 @@ process_args (int argc, char** argv)
   options.verbose = 1;
   options.memory = false;
   options.proc = false;
-  options.iFile = NULL;
-  options.oFile = NULL;
-  options.dbFile = NULL;
+  options.input_file = NULL;
+  options.output_file = NULL;
+  options.settings_file = NULL;
 
   options.input_buffer = 8 * 1024;
   options.output_buffer = 16 * 1024;
@@ -859,8 +850,8 @@ process_args (int argc, char** argv)
         case 'i':
           if (strlen (optarg) > 0)
             {
-              options.iFile = calloc (strlen (optarg) + 1, sizeof (char));
-              strcpy (options.iFile, optarg);
+              options.input_file = calloc (strlen (optarg) + 1, sizeof (char));
+              strcpy (options.input_file, optarg);
             }
           else
             {
@@ -870,8 +861,8 @@ process_args (int argc, char** argv)
         case 'o':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              options.oFile = calloc (strlen (optarg) + 1, sizeof (char));
-              strcpy (options.oFile, optarg);
+              options.output_file = calloc (strlen (optarg) + 1, sizeof (char));
+              strcpy (options.output_file, optarg);
             }
           else
             {
@@ -881,8 +872,9 @@ process_args (int argc, char** argv)
         case 's':
           if (strlen (optarg) > 0 && optarg[0] != '-')
             {
-              options.dbFile = calloc (strlen (optarg) + 1, sizeof (char));
-              strcpy (options.dbFile, optarg);
+              options.settings_file = calloc (strlen (optarg) + 1,
+                                              sizeof (char));
+              strcpy (options.settings_file, optarg);
             }
           else
             {
@@ -964,19 +956,19 @@ process_args (int argc, char** argv)
         }
     }
 
-  if (options.iFile == NULL)
+  if (options.input_file == NULL)
     {
       fprintf (stderr, "Error: No global.input file was specified.\n");
       usage ();
       exit (EXIT_FAILURE);
     }
-  if (options.oFile == NULL)
+  if (options.output_file == NULL)
     {
       fprintf (stderr, "Error: No global.output file was specified.\n");
       usage ();
       exit (EXIT_FAILURE);
     }
-  if (options.dbFile == NULL)
+  if (options.settings_file == NULL)
     {
       fprintf (stderr, "Error: No database settings file was specified.\n");
       usage ();
@@ -1093,14 +1085,14 @@ process_cluster ()
 void
 global_init ()
 {
-  global.input = fopen (options.iFile, "r");
-  free (options.iFile);
+  global.input = fopen (options.input_file, "r");
+  free (options.input_file);
 
   if (!global.input)
     {
       fprintf (stderr, "Error: Couldn't open the global.input file %s.\n"
                "Aborting...\n"
-               , options.iFile);
+               , options.input_file);
       exit (EXIT_FAILURE);
     }
   else
@@ -1113,7 +1105,7 @@ global_init ()
       /* 
        * Read the file. If there is an error, report it and exit.
        */
-      if (!config_read_file (&db_cfg, options.dbFile))
+      if (!config_read_file (&db_cfg, options.settings_file))
         {
           fprintf (stderr, "%s:%d - %s\n", config_error_file (&db_cfg),
                    config_error_line (&db_cfg), config_error_text (&db_cfg));
@@ -1130,17 +1122,17 @@ global_init ()
         {
           fprintf (stderr, "Error: Couldn't parse the database settings file "
                    "%s.\nAborting...\n"
-                   , options.dbFile);
+                   , options.settings_file);
           exit (EXIT_FAILURE);
         }
 
-      free (options.dbFile);
+      free (options.settings_file);
 
       /* 
        * Start processing the global.input file
        */
-      global.output = fopen (options.oFile, "w");
-      free (options.oFile);
+      global.output = fopen (options.output_file, "w");
+      free (options.output_file);
       global.current_line = NULL;
       global.current_hash = NULL;
       global.line_no = 0;
@@ -1169,7 +1161,7 @@ cleanup ()
     printf ("Cleaning up...\n");
 
   /* 
-   * Global clean up for libcurl
+   * Global clean up for cURL
    */
   curl_global_cleanup ();
 
@@ -1264,8 +1256,8 @@ main (int argc, char** argv)
           else
             {
               if (options.verbose > 2)
-                printf ("Processing new hash cluster at line %ld.\n",
-                        global.line_no);
+                fprintf (stderr, "Processing new hash cluster at line %ld.\n",
+                         global.line_no);
               dump_hash_cluster ();
 
               /* 

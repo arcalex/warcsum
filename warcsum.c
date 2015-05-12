@@ -1127,7 +1127,7 @@ process_args (int argc, char **argv, struct cli_args* args)
     {"recursive", no_argument, 0, 'r'},
     {"verbose", no_argument, 0, 'v'},
     {"quiet", no_argument, 0, 'q'},
-    {"force-recalc", no_argument, 0, 'f'},
+    {"force", no_argument, 0, 'f'},
     {"skip-empty", no_argument, 0, 's'},
     {"append", no_argument, 0, 'a'},
     {"help", no_argument, 0, 'h'},

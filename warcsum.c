@@ -1190,6 +1190,24 @@ process_args (int argc, char **argv, struct cli_args* args)
           break;
         case 'I':
           length = strlen (optarg);
+          int i;
+          for (i = 0; i < length - 1; i++)
+            {
+              if (optarg[i] < '0' || optarg[i] > '9')
+                {
+                  fprintf (stderr, "Invalid argument %s for input buffer size.\n"
+                           , optarg);
+                  exit (EXIT_FAILURE);
+                }
+            }
+          if ((optarg[length - 1] < '0' || optarg[length - 1] > '9') &&
+              optarg[length - 1] != 'K' && optarg[length - 1] != 'M' &&
+              optarg[length - 1] != 'G')
+            {
+              fprintf (stderr, "Invalid argument %s for input buffer size.\n"
+                       , optarg);
+              exit (EXIT_FAILURE);
+            }
           switch (optarg[length - 1])
             {
             case 'K':
@@ -1207,6 +1225,23 @@ process_args (int argc, char **argv, struct cli_args* args)
           break;
         case 'O':
           length = strlen (optarg);
+          for (i = 0; i < length - 1; i++)
+            {
+              if (optarg[i] < '0' || optarg[i] > '9')
+                {
+                  fprintf (stderr, "Invalid argument %s for output buffer size.\n"
+                           , optarg);
+                  exit (EXIT_FAILURE);
+                }
+            }
+          if ((optarg[length - 1] < '0' || optarg[length - 1] > '9') &&
+              optarg[length - 1] != 'K' && optarg[length - 1] != 'M' &&
+              optarg[length - 1] != 'G')
+            {
+              fprintf (stderr, "Invalid argument %s for output buffer size.\n"
+                       , optarg);
+              exit (EXIT_FAILURE);
+            }
           switch (optarg[length - 1])
             {
             case 'K':

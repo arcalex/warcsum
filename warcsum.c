@@ -1271,24 +1271,28 @@ process_args (int argc, char **argv, struct cli_args* args)
           help ();
           exit (EXIT_SUCCESS);
         default:
-          fprintf (stderr,
-                   "Usage: warcsum --input=FILE --output=FILE [--hash=ALGORITHM]\n"
-                   "               [--force] [--verbose] [--quiet] [--recursive]\n"
-                   "               [--input-buffer=SIZE] [--output-buffer=SIZE]\n"
-                   "               [--append]\n");
           exit (EXIT_FAILURE);
         }
     }
   if (!strcmp (args->f_input, "") || !strcmp (args->f_output, ""))
     {
-      fprintf (stderr,
-               "Usage: warcsum --input=FILE --output=FILE [--hash=ALGORITHM]\n"
-               "               [--force] [--verbose] [--quiet] [--recursive]\n"
-               "               [--input-buffer=SIZE] [--output-buffer=SIZE]\n"
-               "               [--append]\n");
+      usage ();
       exit (EXIT_FAILURE);
     }
   return 0;
+}
+
+/*
+ * Display usage
+ */
+void
+usage ()
+{
+  fprintf (stderr,
+           "Usage: warcsum --input=FILE --output=FILE [--hash=ALGORITHM]"
+           " [--input-buffer=SIZE] [--output-buffer=SIZE]"
+           " [--force] [--verbose] [--quiet] [--recursive]"
+           " [--append]\n");
 }
 
 /*
@@ -1307,9 +1311,11 @@ version ()
 void
 help ()
 {
-  printf ("Usage\n");
-  printf ("\twarcsum [-i FILE] [-o FILE] [-H HASH ALGO] "
-          "[-I Input buffer size] [-O Output buffer size] -a -f -v -q\n");
+  printf ("Usage:\n"
+          "\twarcsum --input=FILE --output=FILE [--hash=ALGORITHM]"
+          " [--input-buffer=SIZE] [--output-buffer=SIZE]"
+          " [--force] [--verbose] [--quiet] [--recursive]"
+          " [--append]\n");
   printf ("Options\n");
   printf ("\t-i, --input=FILE\n");
   printf ("\t\tPath to warcfile.\n");

@@ -219,6 +219,12 @@ void reset (z_stream* z, struct warcsum_struct* m);
 void end (z_stream* z);
 
 /*
+ * Display usage
+ */
+void
+usage ();
+
+/*
  * Display version
  */
 void version ();

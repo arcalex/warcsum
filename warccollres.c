@@ -1181,66 +1181,8 @@ global_init ()
 }
 
 void
-cleanup ()
+process_input ()
 {
-  if (options.verbose)
-    printf ("Cleaning up...\n");
-
-  /* 
-   * Global clean up for cURL
-   */
-  curl_global_cleanup ();
-
-  dump_hash_cluster (global.output, global.record_cluster);
-
-  /* 
-   * Destroying the records of the remaining hash cluster
-   */
-  destroy_record (global.record_cluster);
-  global.record_cluster = NULL;
-  mysql_close (global.conn);
-  mysql_library_end ();
-  fclose (global.input);
-  fclose (global.output);
-}
-
-void
-print_stats ()
-{
-  size_t total = global.total_records + global.total_skipped;
-  size_t unique = global.total_records -
-          (global.total_duplicates + global.total_collisions);
-
-  printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%%)."
-          "\n\n  processed:%ld (%.2f%%)\n    unique: %ld (%.2f%%)."
-          "\n    duplicate: %ld (%.2f%%).\n    collision: %ld (%.2f%%)."
-          "\n"
-          , total
-          , global.total_skipped
-          , global.total_skipped * 100.0 / total
-          , global.total_records
-          , global.total_records * 100.0 / total
-          , unique
-          , unique * 100.0 / global.total_records
-          , global.total_duplicates
-          , global.total_duplicates * 100.0 / global.total_records
-          , global.total_collisions
-          , global.total_collisions * 100.0 / global.total_records);
-  printf ("Processing time: %f seconds\nNetwork time: %f seconds\n"
-          "Database time: %f seconds\n"
-          , global.time_compare
-          , global.time_download
-          , global.time_database);
-}
-
-int
-main (int argc, char** argv)
-{
-
-  process_args (argc, argv);
-
-  global_init ();
-
   size_t len = 0;
 
   while ((getline (&global.current_line, &len, global.input)) > 0)
@@ -1289,6 +1231,81 @@ main (int argc, char** argv)
           global.total_records++;
         }
     }
+}
+
+void
+cleanup ()
+{
+  if (options.verbose)
+    printf ("Cleaning up...\n");
+
+  /* 
+   * Global clean up for cURL
+   */
+  curl_global_cleanup ();
+
+  dump_hash_cluster (global.output, global.record_cluster);
+
+  /* 
+   * Destroying the records of the remaining hash cluster
+   */
+  destroy_record (global.record_cluster);
+  global.record_cluster = NULL;
+  mysql_close (global.conn);
+  mysql_library_end ();
+  fclose (global.input);
+  fclose (global.output);
+}
+
+void
+print_stats ()
+{
+  if (options.verbose)
+    {
+      size_t total = global.total_records + global.total_skipped;
+      size_t unique = global.total_records -
+              (global.total_duplicates + global.total_collisions);
+
+      printf ("Total member(s): %ld.\n  skipped: %ld (%.2f%%)."
+              "\n\n  processed:%ld (%.2f%%)\n    unique: %ld (%.2f%%)."
+              "\n    duplicate: %ld (%.2f%%).\n    collision: %ld (%.2f%%)."
+              "\n"
+              , total
+              , global.total_skipped
+              , global.total_skipped * 100.0 / total
+              , global.total_records
+              , global.total_records * 100.0 / total
+              , unique
+              , unique * 100.0 / global.total_records
+              , global.total_duplicates
+              , global.total_duplicates * 100.0 / global.total_records
+              , global.total_collisions
+              , global.total_collisions * 100.0 / global.total_records);
+      printf ("Processing time: %f seconds\nNetwork time: %f seconds\n"
+              "Database time: %f seconds\n"
+              , global.time_compare
+              , global.time_download
+              , global.time_database);
+    }
+}
+
+int
+main (int argc, char** argv)
+{
+  /* 
+   * Process the arguments and check for their sanity
+   */
+  process_args (argc, argv);
+
+  /* 
+   * Initialize Everything needed for processing the input
+   */
+  global_init ();
+
+  /* 
+   * Process the input file
+   */
+  process_input ();
 
   /* 
    * Cleaning up after the remaining hash cluster
@@ -1296,10 +1313,9 @@ main (int argc, char** argv)
   cleanup ();
 
   /*
-   * Print statistics about the run.
+   * Print statistics about the run
    */
-  if (options.verbose)
-    print_stats ();
+  print_stats ();
 
   return (EXIT_SUCCESS);
 }

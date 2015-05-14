@@ -191,6 +191,9 @@ void
 global_init();
 
 void
+process_input();
+
+void
 cleanup();
 
 void

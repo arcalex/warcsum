@@ -855,7 +855,7 @@ process_args (int argc, char** argv)
             }
           else
             {
-              fprintf (stderr, "Error: No global.input file was specified.\n");
+              fprintf (stderr, "Error: No input file was specified.\n");
             }
           break;
         case 'o':
@@ -866,7 +866,7 @@ process_args (int argc, char** argv)
             }
           else
             {
-              fprintf (stderr, "Error: No global.output file was specified.\n");
+              fprintf (stderr, "Error: No output file was specified.\n");
             }
           break;
         case 's':
@@ -903,7 +903,7 @@ process_args (int argc, char** argv)
             }
           else
             {
-              fprintf (stderr, "Error: Unrecognized global.input buffer.\n");
+              fprintf (stderr, "Error: Unrecognized input buffer.\n");
             }
           break;
         case 'O':
@@ -927,7 +927,7 @@ process_args (int argc, char** argv)
             }
           else
             {
-              fprintf (stderr, "Error: Unrecognized global.output buffer.\n");
+              fprintf (stderr, "Error: Unrecognized output buffer.\n");
             }
           break;
         case 'p':
@@ -958,13 +958,13 @@ process_args (int argc, char** argv)
 
   if (options.input_file == NULL)
     {
-      fprintf (stderr, "Error: No global.input file was specified.\n");
+      fprintf (stderr, "Error: No input file was specified.\n");
       usage ();
       exit (EXIT_FAILURE);
     }
   if (options.output_file == NULL)
     {
-      fprintf (stderr, "Error: No global.output file was specified.\n");
+      fprintf (stderr, "Error: No output file was specified.\n");
       usage ();
       exit (EXIT_FAILURE);
     }
@@ -1053,8 +1053,7 @@ process_cluster ()
           else
             {
               if (fclose (global.current_record->member_file) != 0)
-                fprintf (stderr, "Error: Could not close temp "
-                         "file.");
+                fprintf (stderr, "Error: Could not close temp file.");
               global.current_record->member_file = NULL;
             }
           global.total_duplicates++;

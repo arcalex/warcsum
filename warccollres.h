@@ -185,6 +185,9 @@ bool
 process_cluster();
 
 void
+process_new_cluster();
+
+void
 global_init();
 
 void

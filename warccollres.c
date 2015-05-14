@@ -1082,6 +1082,32 @@ process_cluster ()
   return true;
 }
 
+/*
+ * Process a new hash cluster
+ * 
+ * The function dumps the current hash cluster into the output file,
+ * destroys the current hash cluster, then creates a new hash cluster
+ * for the new record
+ */
+void
+process_new_cluster ()
+{
+  if (options.verbose > 2)
+    fprintf (stderr, "Processing new hash cluster at line %ld.\n",
+             global.line_no);
+  dump_hash_cluster ();
+
+  /* 
+   * Destroying the records of the old hash cluster
+   */
+  destroy_record (global.record_cluster);
+  global.record_cluster = NULL;
+  global.record_cluster = global.current_record;
+  global.current_hash = global.current_record->hash;
+  global.current_record->ext = 1;
+  global.current_record->copy_no = 1;
+}
+
 void
 global_init ()
 {
@@ -1255,20 +1281,10 @@ main (int argc, char** argv)
             }
           else
             {
-              if (options.verbose > 2)
-                fprintf (stderr, "Processing new hash cluster at line %ld.\n",
-                         global.line_no);
-              dump_hash_cluster ();
-
-              /* 
-               * Destroying the records of the old hash cluster
+              /*
+               * Different hash was found.
                */
-              destroy_record (global.record_cluster);
-              global.record_cluster = NULL;
-              global.record_cluster = global.current_record;
-              global.current_hash = global.current_record->hash;
-              global.current_record->ext = 1;
-              global.current_record->copy_no = 1;
+              process_new_cluster ();
             }
           global.total_records++;
         }

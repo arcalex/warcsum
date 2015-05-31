@@ -61,14 +61,15 @@
 
 #include "warccollres.h"
 
-Record*
-create_record (char * line)
+collision_record*
+create_collision_record (char * line)
 {
   /*
    * The Record constructor
    */
-  Record *object = calloc (1, sizeof (Record));
-  object->next = NULL;
+  collision_record *object = calloc (1, sizeof (collision_record));
+  object->next_duplicate = NULL;
+  object->last_duplicate = NULL;
   object->next_collision = NULL;
   object->member_memory = NULL;
   object->compressed_member_memory = NULL;
@@ -98,7 +99,7 @@ create_record (char * line)
 }
 
 void
-destroy_record (Record *object)
+destroy_record (collision_record *object)
 {
   /* The Record destructor */
   if (object == NULL)
@@ -148,7 +149,7 @@ dump_hash_cluster ()
   /*
    * Dump the previous hash cluster to the global.output file
    */
-  Record *tempColl = global.record_cluster;
+  collision_record *tempColl = global.record_cluster;
 
   /*
    * Dump the collided records
@@ -158,7 +159,7 @@ dump_hash_cluster ()
       /*
        * Dump the similar records to the output file
        */
-      Record *tempRec = tempColl;
+      collision_record *tempRec = tempColl;
       while (tempRec != NULL)
         {
           fprintf (global.output, "%s %zu %zu %s %s %s %zu"
@@ -302,7 +303,7 @@ get_url_from_db (char *filename, char ***url)
 }
 
 bool
-compare_records (Record *first, Record * second)
+compare_records (collision_record *first, collision_record * second)
 {
   long firstIndex = 0, secondIndex = 0;
 
@@ -375,7 +376,7 @@ compare_records (Record *first, Record * second)
 }
 
 bool
-compare_records_file (Record *first, Record * second)
+compare_records_file (collision_record *first, collision_record * second)
 {
   size_t len = 0, read = 0, firstIndex, secondIndex;
   char *line = NULL, *firstBuffer, *secondBuffer;
@@ -489,7 +490,7 @@ compare_records_file (Record *first, Record * second)
 void
 process_chunk (z_stream *z, int chunk, void *vp)
 {
-  Record* record = (Record*) vp;
+  collision_record* record = (collision_record*) vp;
 
   if (options.memory)
     {
@@ -518,7 +519,7 @@ process_chunk (z_stream *z, int chunk, void *vp)
  */
 
 bool
-inflate_record_member (Record *record)
+inflate_record_member (collision_record *record)
 {
   z_stream z;
   gzmInflateInit (&z);
@@ -580,7 +581,7 @@ static size_t
 write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 {
   size_t realsize = size * nmemb;
-  struct Record *record = (struct Record *) userp;
+  struct collision_record *record = (struct collision_record *) userp;
 
   if (options.memory)
     {
@@ -611,7 +612,7 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 bool
-http_download_file (char **url, size_t url_count, Record *record)
+http_download_file (char **url, size_t url_count, collision_record *record)
 {
   CURL *curl_handle;
   CURLcode res;
@@ -723,7 +724,7 @@ http_download_file (char **url, size_t url_count, Record *record)
 }
 
 bool
-download_record (Record *record)
+download_record (collision_record *record)
 {
   /*
    * Obtain the URL where the file is located from the database
@@ -1009,7 +1010,7 @@ process_cluster ()
   /*
    * Check for collisions
    */
-  Record *collRec = global.record_cluster;
+  collision_record *collRec = global.record_cluster;
   bool exist = false;
   while (!exist)
     {
@@ -1030,7 +1031,7 @@ process_cluster ()
           /* 
            * Adding the current record to the list
            */
-          Record * sameRec = collRec;
+          collision_record * sameRec = collRec;
 
           /* 
            * Getting the last similar record
@@ -1190,7 +1191,7 @@ process_input ()
       global.current_line[strlen (global.current_line) - 1] = '\0';
       global.current_line = realloc (global.current_line,
                                      strlen (global.current_line) + 1);
-      global.current_record = create_record (global.current_line);
+      global.current_record = create_collision_record (global.current_line);
       free (global.current_line);
       len = 0;
       global.current_line = NULL;

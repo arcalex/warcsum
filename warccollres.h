@@ -157,6 +157,9 @@ process_args(int argc, char** argv);
 collision_record*
 create_collision_record(char * line);
 
+duplicate_record*
+create_duplicate_record(collision_record *collision);
+
 void
 destroy_record(collision_record *object);
 

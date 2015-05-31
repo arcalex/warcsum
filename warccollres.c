@@ -61,12 +61,12 @@
 
 #include "warccollres.h"
 
+/*
+ * The Record constructor
+ */
 collision_record*
 create_collision_record (char * line)
 {
-  /*
-   * The Record constructor
-   */
   collision_record *object = calloc (1, sizeof (collision_record));
   object->next_duplicate = NULL;
   object->last_duplicate = NULL;

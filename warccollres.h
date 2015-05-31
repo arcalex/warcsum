@@ -94,13 +94,22 @@ typedef struct MemoryStruct {
     size_t size;
 } MemoryStruct;
 
-typedef struct Record {
+typedef struct collision_record {
     char *filename, *uri, *date, *hash;
     size_t offset, length, ext, copy_no, member_size;
     MemoryStruct *member_memory, *compressed_member_memory;
-    struct Record *next, *next_collision;
+    struct collision_record *next_collision;
+    struct duplicate_record *next_duplicate, *last_duplicate;
     FILE *member_file, *compressed_member_file;
-} Record;
+} collision_record;
+
+typedef struct duplicate_record {
+    char *filename, *uri, *date;
+    size_t offset, length, member_size;
+    MemoryStruct *member_memory, *compressed_member_memory;
+    struct duplicate_record *next;
+    FILE *member_file, *compressed_member_file;
+} duplicate_record;
 
 static struct global {
     FILE *input, *output;
@@ -110,7 +119,7 @@ static struct global {
     size_t total_records, total_duplicates, total_collisions, total_skipped,
             line_no;
     
-    Record *current_record, *record_cluster;
+    collision_record *current_record, *record_cluster;
     
     MYSQL *conn;
     
@@ -145,11 +154,11 @@ help();
 int
 process_args(int argc, char** argv);
 
-Record*
+collision_record*
 create_record(char * line);
 
 void
-destroy_record(Record *object);
+destroy_record(collision_record *object);
 
 void
 dump_hash_cluster();
@@ -161,22 +170,22 @@ size_t
 get_url_from_db(char *filename, char ***url);
 
 bool
-compare_records(Record *first, Record *second);
+compare_records(collision_record *first, collision_record *second);
 
 bool
-compare_records_file(Record *first, Record *second);
+compare_records_file(collision_record *first, collision_record *second);
 
 static size_t
 write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);
 
 bool
-http_download_file(char **url, size_t url_count, Record *record);
+http_download_file(char **url, size_t url_count, collision_record *record);
 
 bool
-download_record(Record *record);
+download_record(collision_record *record);
 
 bool
-inflate_record_member(Record *record);
+inflate_record_member(collision_record *record);
 
 void
 process_chunk(z_stream *z, int chunk, void *vp);

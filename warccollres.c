@@ -62,7 +62,7 @@
 #include "warccollres.h"
 
 /*
- * The Record constructor
+ * The collision_record constructor
  */
 collision_record*
 create_collision_record (char * line)
@@ -99,7 +99,7 @@ create_collision_record (char * line)
 }
 
 void
-destroy_record (collision_record *object)
+destroy_collision_record (collision_record *object)
 {
   /* The Record destructor */
   if (object == NULL)
@@ -134,9 +134,9 @@ destroy_record (collision_record *object)
   object->date = NULL;
   object->member_memory = NULL;
   if (object->next_collision != NULL)
-    destroy_record (object->next_collision);
+    destroy_collision_record (object->next_collision);
   if (object->next != NULL)
-    destroy_record (object->next);
+    destroy_collision_record (object->next);
   object->next = NULL;
   object->next_collision = NULL;
   free (object);
@@ -740,7 +740,7 @@ download_record (collision_record *record)
       if (!options.verbose)
         fprintf (stderr, "Error: Could not find a server for the processed "
                  "record in line %ld.\n", global.line_no);
-      destroy_record (record);
+      destroy_collision_record (record);
       return false;
     }
 
@@ -760,7 +760,7 @@ download_record (collision_record *record)
         fprintf (stderr, "Error: Could not download the member from the "
                  "HTTP server for the processed record in line %ld.\n",
                  global.line_no);
-      destroy_record (record);
+      destroy_collision_record (record);
       return false;
     }
   return true;
@@ -1100,7 +1100,7 @@ process_new_cluster ()
   /* 
    * Destroying the records of the old hash cluster
    */
-  destroy_record (global.record_cluster);
+  destroy_collision_record (global.record_cluster);
   global.record_cluster = NULL;
   global.record_cluster = global.current_record;
   global.current_hash = global.current_record->hash;
@@ -1249,7 +1249,7 @@ cleanup ()
   /* 
    * Destroying the records of the remaining hash cluster
    */
-  destroy_record (global.record_cluster);
+  destroy_collision_record (global.record_cluster);
   global.record_cluster = NULL;
   mysql_close (global.conn);
   mysql_library_end ();

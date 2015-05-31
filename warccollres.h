@@ -161,7 +161,7 @@ duplicate_record*
 create_duplicate_record(collision_record *collision);
 
 void
-destroy_record(collision_record *object);
+destroy_collision_record(collision_record *object);
 
 void
 dump_hash_cluster();

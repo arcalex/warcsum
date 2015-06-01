@@ -135,9 +135,9 @@ destroy_collision_record (collision_record *object)
   object->member_memory = NULL;
   if (object->next_collision != NULL)
     destroy_collision_record (object->next_collision);
-  if (object->next != NULL)
-    destroy_collision_record (object->next);
-  object->next = NULL;
+  if (object->next_duplicate != NULL)
+    destroy_duplicate_record (object->next_duplicate);
+  object->next_duplicate = NULL;
   object->next_collision = NULL;
   free (object);
   object = NULL;

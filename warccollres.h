@@ -164,6 +164,9 @@ void
 destroy_collision_record(collision_record *object);
 
 void
+destroy_duplicate_record(duplicate_record *object);
+
+void
 dump_hash_cluster();
 
 MYSQL*

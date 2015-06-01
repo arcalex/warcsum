@@ -64,13 +64,11 @@
 /*
  * The collision_record constructor
  */
-collision_record*
-create_collision_record (char * line)
+duplicate_record*
+create_duplicate_record (char * line)
 {
   collision_record *object = calloc (1, sizeof (collision_record));
   object->next_duplicate = NULL;
-  object->last_duplicate = NULL;
-  object->next_collision = NULL;
   object->member_memory = NULL;
   object->compressed_member_memory = NULL;
   object->member_file = NULL;
@@ -93,8 +91,13 @@ create_collision_record (char * line)
   object->date = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->date, token);
   token = strtok (NULL, " ");
-  object->hash = calloc (strlen (token) + 1, sizeof (char));
-  strcpy (object->hash, token);
+  if(global.current_hash)
+    {
+      free(global.current_hash);
+      global.current_hash = NULL;
+    }
+  global.current_hash = calloc (strlen (token) + 1, sizeof (char));
+  strcpy (global.current_hash, token);
   return object;
 }
 
@@ -1160,6 +1163,7 @@ global_init ()
       global.output = fopen (options.output_file, "w");
       free (options.output_file);
       global.current_line = NULL;
+      global.current_hash = NULL;
       global.cluster_hash = NULL;
       global.line_no = 0;
       global.total_records = 0;

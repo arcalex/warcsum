@@ -114,7 +114,7 @@ typedef struct duplicate_record {
 static struct global {
     FILE *input, *output;
     
-    char *current_line, *current_hash;
+    char *current_line, *cluster_hash, *current_hash;
     
     size_t total_records, total_duplicates, total_collisions, total_skipped,
             line_no;

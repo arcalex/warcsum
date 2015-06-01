@@ -1103,7 +1103,7 @@ process_new_cluster ()
   destroy_collision_record (global.record_cluster);
   global.record_cluster = NULL;
   global.record_cluster = global.current_record;
-  global.current_hash = global.current_record->hash;
+  global.cluster_hash = global.current_record->hash;
   global.current_record->ext = 1;
   global.current_record->copy_no = 1;
 }
@@ -1160,7 +1160,7 @@ global_init ()
       global.output = fopen (options.output_file, "w");
       free (options.output_file);
       global.current_line = NULL;
-      global.current_hash = NULL;
+      global.cluster_hash = NULL;
       global.line_no = 0;
       global.total_records = 0;
       global.total_duplicates = 0;
@@ -1203,7 +1203,7 @@ process_input ()
       if (global.record_cluster == NULL)
         {
           global.record_cluster = global.current_record;
-          global.current_hash = global.current_record->hash;
+          global.cluster_hash = global.current_record->hash;
           global.current_record->ext = 1;
           global.current_record->copy_no = 1;
           global.total_records++;
@@ -1211,7 +1211,7 @@ process_input ()
       else
         {
           /* Check for a new hash */
-          if (!strcmp (global.current_record->hash, global.current_hash))
+          if (!strcmp (global.current_record->hash, global.cluster_hash))
             {
               /*
                * Same hash was found.

@@ -96,7 +96,7 @@ typedef struct MemoryStruct {
 
 typedef struct collision_record {
     char *filename, *uri, *date, *hash;
-    size_t offset, length, ext, copy_no, member_size;
+    size_t offset, length, member_size;
     MemoryStruct *member_memory, *compressed_member_memory;
     struct collision_record *next_collision;
     struct duplicate_record *next_duplicate, *last_duplicate;

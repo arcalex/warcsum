@@ -62,12 +62,12 @@
 #include "warccollres.h"
 
 /*
- * The collision_record constructor
+ * The duplicate_record constructor
  */
 duplicate_record*
 create_duplicate_record (char * line)
 {
-  collision_record *object = calloc (1, sizeof (collision_record));
+  duplicate_record *object = calloc (1, sizeof (duplicate_record));
   object->next_duplicate = NULL;
   object->member_memory = NULL;
   object->compressed_member_memory = NULL;
@@ -144,6 +144,34 @@ destroy_collision_record (collision_record *object)
   object->next_collision = NULL;
   free (object);
   object = NULL;
+}
+
+/*
+ * The collision_record constructor
+ */
+collision_record*
+create_collision_record (duplicate_record *duplicate)
+{
+  collision_record *collision = calloc (1, sizeof (collision_record));
+  collision->next_duplicate = NULL;
+  collision->member_memory = duplicate->member_memory;
+  collision->compressed_member_memory = duplicate->compressed_member_memory;
+  collision->member_file = duplicate->member_file;
+  collision->compressed_member_file = duplicate->compressed_member_file;
+  collision->member_size = duplicate->member_size;
+  
+  collision->filename = duplicate->filename;
+  collision->uri = duplicate->uri;
+  collision->date = duplicate->date;
+  collision->offset = duplicate->offset;
+  collision->length = duplicate->length;
+  
+  collision->hash = global.current_hash;
+  collision->next_collision = NULL;
+  collision->next_duplicate = NULL;
+  collision->last_duplicate = NULL;
+  
+  return collision;
 }
 
 void

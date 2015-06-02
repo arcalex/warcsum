@@ -171,6 +171,19 @@ create_collision_record (duplicate_record *duplicate)
   collision->next_duplicate = NULL;
   collision->last_duplicate = NULL;
   
+  duplicate->compressed_member_file = NULL;
+  duplicate->compressed_member_memory = NULL;
+  duplicate->member_file = NULL;
+  duplicate->member_memory = NULL;
+  duplicate->date = NULL;
+  duplicate->member_size = 0;
+  duplicate->offset = 0;
+  duplicate->uri = NULL;
+  duplicate->next = NULL;
+  
+  free(duplicate);
+  duplicate = NULL;
+  
   return collision;
 }
 

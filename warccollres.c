@@ -91,9 +91,9 @@ create_duplicate_record (char * line)
   object->date = calloc (strlen (token) + 1, sizeof (char));
   strcpy (object->date, token);
   token = strtok (NULL, " ");
-  if(global.current_hash)
+  if (global.current_hash)
     {
-      free(global.current_hash);
+      free (global.current_hash);
       global.current_hash = NULL;
     }
   global.current_hash = calloc (strlen (token) + 1, sizeof (char));
@@ -133,7 +133,7 @@ destroy_duplicate_record (duplicate_record *object)
   object->uri = NULL;
   object->date = NULL;
   object->member_memory = NULL;
- 
+
   if (object->next != NULL)
     destroy_duplicate_record (object->next);
   object->next = NULL;
@@ -147,12 +147,12 @@ destroy_duplicate_record (duplicate_record *object)
 collision_record*
 create_collision_record (duplicate_record *duplicate)
 {
-  
+
   /*
    * Create an object of the collision record from the duplicate object
    */
   collision_record *collision = calloc (1, sizeof (collision_record));
-  
+
   /*
    * Copy all data from the duplicate record to the new collision record
    */
@@ -161,13 +161,13 @@ create_collision_record (duplicate_record *duplicate)
   collision->member_file = duplicate->member_file;
   collision->compressed_member_file = duplicate->compressed_member_file;
   collision->member_size = duplicate->member_size;
-  
+
   collision->filename = duplicate->filename;
   collision->uri = duplicate->uri;
   collision->date = duplicate->date;
   collision->offset = duplicate->offset;
   collision->length = duplicate->length;
-  
+
   /*
    * Set the default values for the other attributes of the collision record
    */
@@ -175,7 +175,7 @@ create_collision_record (duplicate_record *duplicate)
   collision->next_collision = NULL;
   collision->next_duplicate = NULL;
   collision->last_duplicate = NULL;
-  
+
   /*
    * Set everything in the duplicate record to NULL or 0 before freeing it.
    */
@@ -188,13 +188,13 @@ create_collision_record (duplicate_record *duplicate)
   duplicate->offset = 0;
   duplicate->uri = NULL;
   duplicate->next = NULL;
-  
+
   /*
    * Free the duplicate object
    */
-  free(duplicate);
+  free (duplicate);
   duplicate = NULL;
-  
+
   return collision;
 }
 
@@ -250,8 +250,8 @@ dump_hash_cluster ()
    * Dump the previous hash cluster to the global.output file
    */
   collision_record *tempColl = global.record_cluster;
-  
-  size_t ext(0), copy_no(0);
+
+  size_t ext (0), copy_no (0);
 
   /*
    * Dump the collided records
@@ -1291,7 +1291,7 @@ process_input ()
       global.current_line[strlen (global.current_line) - 1] = '\0';
       global.current_line = realloc (global.current_line,
                                      strlen (global.current_line) + 1);
-      global.current_record = create_collision_record (global.current_line);
+      global.current_record = create_duplicate_record (global.current_line);
       free (global.current_line);
       len = 0;
       global.current_line = NULL;
@@ -1302,14 +1302,15 @@ process_input ()
        */
       if (global.record_cluster == NULL)
         {
-          global.record_cluster = global.current_record;
-          global.cluster_hash = global.current_record->hash;
+          global.record_cluster =
+                  create_collision_record (global.current_record);
+          global.cluster_hash = global.current_hash;
           global.total_records++;
         }
       else
         {
           /* Check for a new hash */
-          if (!strcmp (global.current_record->hash, global.cluster_hash))
+          if (!strcmp (global.current_hash, global.cluster_hash))
             {
               /*
                * Same hash was found.
@@ -1326,6 +1327,12 @@ process_input ()
                */
               process_new_cluster ();
             }
+          if (global.current_hash)
+            {
+              free (global.current_hash);
+              global.current_hash = NULL;
+            }
+
           global.total_records++;
         }
     }

@@ -119,7 +119,8 @@ static struct global {
     size_t total_records, total_duplicates, total_collisions, total_skipped,
             line_no;
     
-    collision_record *current_record, *record_cluster;
+    collision_record *record_cluster;
+    duplicate_record *current_record;
     
     MYSQL *conn;
     

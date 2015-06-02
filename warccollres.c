@@ -152,8 +152,15 @@ destroy_collision_record (collision_record *object)
 collision_record*
 create_collision_record (duplicate_record *duplicate)
 {
+  
+  /*
+   * Create an object of the collision record from the duplicate object
+   */
   collision_record *collision = calloc (1, sizeof (collision_record));
-  collision->next_duplicate = NULL;
+  
+  /*
+   * Copy all data from the duplicate record to the new collision record
+   */
   collision->member_memory = duplicate->member_memory;
   collision->compressed_member_memory = duplicate->compressed_member_memory;
   collision->member_file = duplicate->member_file;
@@ -166,11 +173,17 @@ create_collision_record (duplicate_record *duplicate)
   collision->offset = duplicate->offset;
   collision->length = duplicate->length;
   
+  /*
+   * Set the default values for the other attributes of the collision record
+   */
   collision->hash = global.current_hash;
   collision->next_collision = NULL;
   collision->next_duplicate = NULL;
   collision->last_duplicate = NULL;
   
+  /*
+   * Set everything in the duplicate record to NULL or 0 before freeing it.
+   */
   duplicate->compressed_member_file = NULL;
   duplicate->compressed_member_memory = NULL;
   duplicate->member_file = NULL;
@@ -181,6 +194,9 @@ create_collision_record (duplicate_record *duplicate)
   duplicate->uri = NULL;
   duplicate->next = NULL;
   
+  /*
+   * Free the duplicate object
+   */
   free(duplicate);
   duplicate = NULL;
   

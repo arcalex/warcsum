@@ -250,18 +250,23 @@ dump_hash_cluster ()
    * Dump the previous hash cluster to the global.output file
    */
   collision_record *tempColl = global.record_cluster;
+  
+  size_t ext(0), copy_no(0);
 
   /*
    * Dump the collided records
    */
   while (tempColl != NULL)
     {
+      ext++;
+      copy_no = 0;
       /*
        * Dump the similar records to the output file
        */
       collision_record *tempRec = tempColl;
       while (tempRec != NULL)
         {
+          copy_no++;
           fprintf (global.output, "%s %zu %zu %s %s %s %zu"
                    , tempRec->filename
                    , tempRec->offset
@@ -269,11 +274,11 @@ dump_hash_cluster ()
                    , tempRec->uri
                    , tempRec->date
                    , tempRec->hash
-                   , tempRec->ext);
+                   , ext);
           if (options.proc)
             {
-              fprintf (global.output, " %zu", tempRec->copy_no);
-              if (tempRec->copy_no == 1)
+              fprintf (global.output, " %zu", copy_no);
+              if (copy_no == 1)
                 fprintf (global.output, " - -");
               else
                 fprintf (global.output, " %s %s"
@@ -286,7 +291,7 @@ dump_hash_cluster ()
           /*
            * Prepare the next record
            */
-          tempRec = tempRec->next;
+          tempRec = tempRec->next_duplicate;
         }
       tempColl = tempColl->next_collision;
     }

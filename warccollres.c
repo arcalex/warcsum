@@ -1139,8 +1139,6 @@ process_cluster ()
           while (sameRec->next != NULL)
             sameRec = sameRec->next;
           sameRec->next = global.current_record;
-          global.current_record->ext = sameRec->ext;
-          global.current_record->copy_no = sameRec->copy_no + 1;
 
           /* 
            * Removing the data of the duplicate record
@@ -1174,8 +1172,6 @@ process_cluster ()
        * Adding the record to the list of collisions
        */
       collRec->next_collision = global.current_record;
-      global.current_record->ext = collRec->ext + 1;
-      global.current_record->copy_no = 1;
       global.total_collisions++;
     }
 
@@ -1204,8 +1200,6 @@ process_new_cluster ()
   global.record_cluster = NULL;
   global.record_cluster = global.current_record;
   global.cluster_hash = global.current_record->hash;
-  global.current_record->ext = 1;
-  global.current_record->copy_no = 1;
 }
 
 void
@@ -1305,8 +1299,6 @@ process_input ()
         {
           global.record_cluster = global.current_record;
           global.cluster_hash = global.current_record->hash;
-          global.current_record->ext = 1;
-          global.current_record->copy_no = 1;
           global.total_records++;
         }
       else

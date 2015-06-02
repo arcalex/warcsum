@@ -1202,9 +1202,10 @@ process_new_cluster ()
    * Destroying the records of the old hash cluster
    */
   destroy_collision_record (global.record_cluster);
-  global.record_cluster = NULL;
-  global.record_cluster = global.current_record;
-  global.cluster_hash = global.current_record->hash;
+  global.record_cluster = create_collision_record (global.current_record);
+  if (global.cluster_hash)
+    free (global.cluster_hash);
+  global.cluster_hash = global.current_hash;
 }
 
 void

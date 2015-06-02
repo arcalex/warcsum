@@ -68,7 +68,7 @@ duplicate_record*
 create_duplicate_record (char * line)
 {
   duplicate_record *object = calloc (1, sizeof (duplicate_record));
-  object->next_duplicate = NULL;
+  object->next = NULL;
   object->member_memory = NULL;
   object->compressed_member_memory = NULL;
   object->member_file = NULL;
@@ -102,7 +102,7 @@ create_duplicate_record (char * line)
 }
 
 void
-destroy_collision_record (collision_record *object)
+destroy_duplicate_record (duplicate_record *object)
 {
   /* The Record destructor */
   if (object == NULL)
@@ -123,8 +123,6 @@ destroy_collision_record (collision_record *object)
     free (object->uri);
   if (object->date)
     free (object->date);
-  if (object->hash)
-    free (object->hash);
   if (object->member_memory != NULL && object->member_memory->size > 0)
     free (object->member_memory->memory);
   if (object->member_memory != NULL)
@@ -133,15 +131,12 @@ destroy_collision_record (collision_record *object)
     free (object->compressed_member_memory);
   object->filename = NULL;
   object->uri = NULL;
-  object->hash = NULL;
   object->date = NULL;
   object->member_memory = NULL;
-  if (object->next_collision != NULL)
-    destroy_collision_record (object->next_collision);
-  if (object->next_duplicate != NULL)
-    destroy_duplicate_record (object->next_duplicate);
-  object->next_duplicate = NULL;
-  object->next_collision = NULL;
+ 
+  if (object->next != NULL)
+    destroy_duplicate_record (object->next);
+  object->next = NULL;
   free (object);
   object = NULL;
 }
@@ -201,6 +196,51 @@ create_collision_record (duplicate_record *duplicate)
   duplicate = NULL;
   
   return collision;
+}
+
+void
+destroy_collision_record (collision_record *object)
+{
+  /* The Record destructor */
+  if (object == NULL)
+    return;
+  if (object->member_file != NULL)
+    {
+      fclose (object->member_file);
+      object->member_file = NULL;
+    }
+  if (object->compressed_member_file != NULL)
+    {
+      fclose (object->compressed_member_file);
+      object->compressed_member_file = NULL;
+    }
+  if (object->filename)
+    free (object->filename);
+  if (object->uri)
+    free (object->uri);
+  if (object->date)
+    free (object->date);
+  if (object->hash)
+    free (object->hash);
+  if (object->member_memory != NULL && object->member_memory->size > 0)
+    free (object->member_memory->memory);
+  if (object->member_memory != NULL)
+    free (object->member_memory);
+  if (object->compressed_member_memory != NULL)
+    free (object->compressed_member_memory);
+  object->filename = NULL;
+  object->uri = NULL;
+  object->hash = NULL;
+  object->date = NULL;
+  object->member_memory = NULL;
+  if (object->next_collision != NULL)
+    destroy_collision_record (object->next_collision);
+  if (object->next_duplicate != NULL)
+    destroy_duplicate_record (object->next_duplicate);
+  object->next_duplicate = NULL;
+  object->next_collision = NULL;
+  free (object);
+  object = NULL;
 }
 
 void

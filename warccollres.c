@@ -156,44 +156,14 @@ create_collision_record (duplicate_record *duplicate)
   /*
    * Copy all data from the duplicate record to the new collision record
    */
-  collision->member_memory = duplicate->member_memory;
-  collision->compressed_member_memory = duplicate->compressed_member_memory;
-  collision->member_file = duplicate->member_file;
-  collision->compressed_member_file = duplicate->compressed_member_file;
-  collision->member_size = duplicate->member_size;
-
-  collision->filename = duplicate->filename;
-  collision->uri = duplicate->uri;
-  collision->date = duplicate->date;
-  collision->offset = duplicate->offset;
-  collision->length = duplicate->length;
+  collision->duplicate_list = duplicate;
 
   /*
    * Set the default values for the other attributes of the collision record
    */
   collision->hash = global.current_hash;
   collision->next_collision = NULL;
-  collision->next_duplicate = NULL;
   collision->last_duplicate = NULL;
-
-  /*
-   * Set everything in the duplicate record to NULL or 0 before freeing it.
-   */
-  duplicate->compressed_member_file = NULL;
-  duplicate->compressed_member_memory = NULL;
-  duplicate->member_file = NULL;
-  duplicate->member_memory = NULL;
-  duplicate->date = NULL;
-  duplicate->member_size = 0;
-  duplicate->offset = 0;
-  duplicate->uri = NULL;
-  duplicate->next = NULL;
-
-  /*
-   * Free the duplicate object
-   */
-  free (duplicate);
-  duplicate = NULL;
 
   return collision;
 }
@@ -204,41 +174,19 @@ destroy_collision_record (collision_record *object)
   /* The Record destructor */
   if (object == NULL)
     return;
-  if (object->member_file != NULL)
-    {
-      fclose (object->member_file);
-      object->member_file = NULL;
-    }
-  if (object->compressed_member_file != NULL)
-    {
-      fclose (object->compressed_member_file);
-      object->compressed_member_file = NULL;
-    }
-  if (object->filename)
-    free (object->filename);
-  if (object->uri)
-    free (object->uri);
-  if (object->date)
-    free (object->date);
+  
+  destroy_duplicate_record(object->duplicate_list);
   if (object->hash)
     free (object->hash);
-  if (object->member_memory != NULL && object->member_memory->size > 0)
-    free (object->member_memory->memory);
-  if (object->member_memory != NULL)
-    free (object->member_memory);
-  if (object->compressed_member_memory != NULL)
-    free (object->compressed_member_memory);
-  object->filename = NULL;
-  object->uri = NULL;
+  
   object->hash = NULL;
-  object->date = NULL;
-  object->member_memory = NULL;
+  
   if (object->next_collision != NULL)
     destroy_collision_record (object->next_collision);
-  if (object->next_duplicate != NULL)
-    destroy_duplicate_record (object->next_duplicate);
-  object->next_duplicate = NULL;
   object->next_collision = NULL;
+  
+  object->last_duplicate = NULL;
+  
   free (object);
   object = NULL;
 }
@@ -249,31 +197,31 @@ dump_hash_cluster ()
   /*
    * Dump the previous hash cluster to the global.output file
    */
-  collision_record *tempColl = global.record_cluster;
+  collision_record *temp_coll = global.record_cluster;
 
-  size_t ext (0), copy_no (0);
+  size_t ext = 0, copy_no = 0;
 
   /*
    * Dump the collided records
    */
-  while (tempColl != NULL)
+  while (temp_coll != NULL)
     {
       ext++;
       copy_no = 0;
       /*
        * Dump the similar records to the output file
        */
-      collision_record *tempRec = tempColl;
-      while (tempRec != NULL)
+      duplicate_record *temp_rec = temp_coll->duplicate_list;
+      while (temp_rec != NULL)
         {
           copy_no++;
           fprintf (global.output, "%s %zu %zu %s %s %s %zu"
-                   , tempRec->filename
-                   , tempRec->offset
-                   , tempRec->length
-                   , tempRec->uri
-                   , tempRec->date
-                   , tempRec->hash
+                   , temp_rec->filename
+                   , temp_rec->offset
+                   , temp_rec->length
+                   , temp_rec->uri
+                   , temp_rec->date
+                   , temp_coll->hash
                    , ext);
           if (options.proc)
             {
@@ -282,8 +230,8 @@ dump_hash_cluster ()
                 fprintf (global.output, " - -");
               else
                 fprintf (global.output, " %s %s"
-                         , tempColl->uri
-                         , tempColl->date);
+                         , temp_rec->uri
+                         , temp_rec->date);
 
             }
           fprintf (global.output, "\n");
@@ -291,9 +239,9 @@ dump_hash_cluster ()
           /*
            * Prepare the next record
            */
-          tempRec = tempRec->next_duplicate;
+          temp_rec = temp_rec->next;
         }
-      tempColl = tempColl->next_collision;
+      temp_coll = temp_coll->next_collision;
     }
 }
 
@@ -408,7 +356,7 @@ get_url_from_db (char *filename, char ***url)
 }
 
 bool
-compare_records (collision_record *first, collision_record * second)
+compare_records (duplicate_record *first, duplicate_record * second)
 {
   long firstIndex = 0, secondIndex = 0;
 
@@ -481,7 +429,7 @@ compare_records (collision_record *first, collision_record * second)
 }
 
 bool
-compare_records_file (collision_record *first, collision_record * second)
+compare_records_file (duplicate_record *first, duplicate_record * second)
 {
   size_t len = 0, read = 0, firstIndex, secondIndex;
   char *line = NULL, *firstBuffer, *secondBuffer;
@@ -595,7 +543,7 @@ compare_records_file (collision_record *first, collision_record * second)
 void
 process_chunk (z_stream *z, int chunk, void *vp)
 {
-  collision_record* record = (collision_record*) vp;
+  duplicate_record* record = (duplicate_record*) vp;
 
   if (options.memory)
     {
@@ -624,7 +572,7 @@ process_chunk (z_stream *z, int chunk, void *vp)
  */
 
 bool
-inflate_record_member (collision_record *record)
+inflate_record_member (duplicate_record *record)
 {
   z_stream z;
   gzmInflateInit (&z);
@@ -686,7 +634,7 @@ static size_t
 write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 {
   size_t realsize = size * nmemb;
-  struct collision_record *record = (struct collision_record *) userp;
+  struct duplicate_record *record = (struct duplicate_record *) userp;
 
   if (options.memory)
     {
@@ -717,7 +665,7 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 bool
-http_download_file (char **url, size_t url_count, collision_record *record)
+http_download_file (char **url, size_t url_count, duplicate_record *record)
 {
   CURL *curl_handle;
   CURLcode res;
@@ -829,7 +777,7 @@ http_download_file (char **url, size_t url_count, collision_record *record)
 }
 
 bool
-download_record (collision_record *record)
+download_record (duplicate_record *record)
 {
   /*
    * Obtain the URL where the file is located from the database
@@ -845,7 +793,7 @@ download_record (collision_record *record)
       if (!options.verbose)
         fprintf (stderr, "Error: Could not find a server for the processed "
                  "record in line %ld.\n", global.line_no);
-      destroy_collision_record (record);
+      destroy_duplicate_record (record);
       return false;
     }
 
@@ -865,7 +813,7 @@ download_record (collision_record *record)
         fprintf (stderr, "Error: Could not download the member from the "
                  "HTTP server for the processed record in line %ld.\n",
                  global.line_no);
-      destroy_collision_record (record);
+      destroy_duplicate_record (record);
       return false;
     }
   return true;
@@ -1093,8 +1041,8 @@ process_cluster ()
    * Download the first WARC member in the hash cluster if
    * it was not downloaded.
    */
-  if (global.record_cluster->member_size == 0)
-    if (!download_record (global.record_cluster))
+  if (global.record_cluster->duplicate_list->member_size == 0)
+    if (!download_record (global.record_cluster->duplicate_list))
       {
         global.total_skipped++;
         global.record_cluster = NULL;
@@ -1115,16 +1063,17 @@ process_cluster ()
   /*
    * Check for collisions
    */
-  collision_record *collRec = global.record_cluster;
+  collision_record *coll_rec = global.record_cluster;
   bool exist = false;
   while (!exist)
     {
       start = clock ();
 
       if ((options.memory &&
-           compare_records (collRec, global.current_record)) ||
+           compare_records (coll_rec->duplicate_list, global.current_record)) ||
           (!options.memory &&
-           compare_records_file (collRec, global.current_record)))
+           compare_records_file (coll_rec->duplicate_list,
+                                 global.current_record)))
         {
           end = clock ();
           global.time_compare += ((double) (end - start)) /
@@ -1136,14 +1085,13 @@ process_cluster ()
           /* 
            * Adding the current record to the list
            */
-          collision_record * sameRec = collRec;
-
-          /* 
-           * Getting the last similar record
-           */
-          while (sameRec->next != NULL)
-            sameRec = sameRec->next;
-          sameRec->next = global.current_record;
+          if(coll_rec->duplicate_list)
+            coll_rec->duplicate_list = global.current_record;
+          else
+            {
+              coll_rec->last_duplicate->next = global.current_record;
+              coll_rec->last_duplicate = global.current_record;
+            }
 
           /* 
            * Removing the data of the duplicate record
@@ -1164,9 +1112,9 @@ process_cluster ()
           exist = true;
         }
 
-      if (collRec->next_collision == NULL)
+      if (coll_rec->next_collision == NULL)
         break;
-      collRec = collRec->next_collision;
+      coll_rec = coll_rec->next_collision;
     }
   if (!exist)
     {
@@ -1176,7 +1124,7 @@ process_cluster ()
       /* 
        * Adding the record to the list of collisions
        */
-      collRec->next_collision = global.current_record;
+      coll_rec->next_collision = create_collision_record (global.current_record);
       global.total_collisions++;
     }
 

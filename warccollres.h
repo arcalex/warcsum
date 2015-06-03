@@ -97,7 +97,7 @@ typedef struct MemoryStruct {
 typedef struct collision_record {
     char *hash;
     struct collision_record *next_collision;
-    struct duplicate_record duplicate_list, *last_duplicate;
+    struct duplicate_record *duplicate_list, *last_duplicate;
 } collision_record;
 
 typedef struct duplicate_record {
@@ -174,10 +174,10 @@ size_t
 get_url_from_db(char *filename, char ***url);
 
 bool
-compare_records(collision_record *first, duplicate_record *second);
+compare_records(duplicate_record *first, duplicate_record *second);
 
 bool
-compare_records_file(collision_record *first, duplicate_record *second);
+compare_records_file(duplicate_record *first, duplicate_record *second);
 
 static size_t
 write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);

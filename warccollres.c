@@ -338,8 +338,9 @@ get_url_from_db (char *filename, char ***url)
       row = mysql_fetch_row (res);
       if (row && row[0] != NULL)
         {
-          (*url)[i] = calloc (strlen (row[0]), sizeof (char));
+          (*url)[i] = calloc (strlen (row[0]) + 1, sizeof (char));
           strcpy ((*url)[i], row[0]);
+          (*url)[i][strlen (row[0])] = '\0';
         }
       else
         {

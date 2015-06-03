@@ -173,15 +173,15 @@ destroy_collision_record (collision_record *object)
   /* The Record destructor */
   if (object == NULL)
     return;
-  
-  destroy_duplicate_record(object->duplicate_list);
-  
+
+  destroy_duplicate_record (object->duplicate_list);
+
   if (object->next_collision != NULL)
     destroy_collision_record (object->next_collision);
   object->next_collision = NULL;
-  
+
   object->last_duplicate = NULL;
-  
+
   free (object);
   object = NULL;
 }
@@ -1080,13 +1080,8 @@ process_cluster ()
           /* 
            * Adding the current record to the list
            */
-          if(coll_rec->duplicate_list)
-            coll_rec->duplicate_list = global.current_record;
-          else
-            {
-              coll_rec->last_duplicate->next = global.current_record;
-              coll_rec->last_duplicate = global.current_record;
-            }
+          coll_rec->last_duplicate->next = global.current_record;
+          coll_rec->last_duplicate = global.current_record;
 
           /* 
            * Removing the data of the duplicate record
@@ -1149,6 +1144,7 @@ process_new_cluster ()
   if (global.cluster_hash)
     free (global.cluster_hash);
   global.cluster_hash = global.current_hash;
+  global.current_hash = NULL;
 }
 
 void
@@ -1271,11 +1267,6 @@ process_input ()
                * Different hash was found.
                */
               process_new_cluster ();
-            }
-          if (global.current_hash)
-            {
-              free (global.current_hash);
-              global.current_hash = NULL;
             }
 
           global.total_records++;

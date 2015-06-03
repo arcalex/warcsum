@@ -739,6 +739,20 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
         }
     }
 
+  for (i = 0; i < url_count; i++)
+    {
+      if(url[i])
+        {
+            free (url[i]);
+            url[i] = NULL;
+        }
+    }
+  if (url)
+    {
+      free (url);
+      url = NULL;
+    }
+
 
   /* 
    * check for download errors
@@ -801,7 +815,6 @@ download_record (duplicate_record *record)
   end = clock ();
 
   global.time_download += ((double) (end - start)) / CLOCKS_PER_SEC;
-  free (url);
   if (record->member_size == 0)
     {
       if (!options.verbose)
@@ -1292,6 +1305,25 @@ cleanup ()
    */
   destroy_collision_record (global.record_cluster);
   global.record_cluster = NULL;
+  
+  if(global.cluster_hash)
+    {
+      free(global.cluster_hash);
+      global.cluster_hash = NULL;
+    }
+  
+  if(global.current_hash)
+    {
+      free(global.current_hash);
+      global.current_hash = NULL;
+    }
+  
+  if(global.current_line)
+    {
+      free(global.current_line);
+      global.current_line = NULL;
+    }
+  
   mysql_close (global.conn);
   mysql_library_end ();
   fclose (global.input);

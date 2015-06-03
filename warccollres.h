@@ -95,12 +95,9 @@ typedef struct MemoryStruct {
 } MemoryStruct;
 
 typedef struct collision_record {
-    char *filename, *uri, *date, *hash;
-    size_t offset, length, member_size;
-    MemoryStruct *member_memory, *compressed_member_memory;
+    char *hash;
     struct collision_record *next_collision;
-    struct duplicate_record *next_duplicate, *last_duplicate;
-    FILE *member_file, *compressed_member_file;
+    struct duplicate_record duplicate_list, *last_duplicate;
 } collision_record;
 
 typedef struct duplicate_record {
@@ -177,22 +174,22 @@ size_t
 get_url_from_db(char *filename, char ***url);
 
 bool
-compare_records(collision_record *first, collision_record *second);
+compare_records(collision_record *first, duplicate_record *second);
 
 bool
-compare_records_file(collision_record *first, collision_record *second);
+compare_records_file(collision_record *first, duplicate_record *second);
 
 static size_t
 write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);
 
 bool
-http_download_file(char **url, size_t url_count, collision_record *record);
+http_download_file(char **url, size_t url_count, duplicate_record *record);
 
 bool
-download_record(collision_record *record);
+download_record(duplicate_record *record);
 
 bool
-inflate_record_member(collision_record *record);
+inflate_record_member(duplicate_record *record);
 
 void
 process_chunk(z_stream *z, int chunk, void *vp);

@@ -161,9 +161,8 @@ create_collision_record (duplicate_record *duplicate)
   /*
    * Set the default values for the other attributes of the collision record
    */
-  collision->hash = global.current_hash;
   collision->next_collision = NULL;
-  collision->last_duplicate = NULL;
+  collision->last_duplicate = duplicate;
 
   return collision;
 }
@@ -176,10 +175,6 @@ destroy_collision_record (collision_record *object)
     return;
   
   destroy_duplicate_record(object->duplicate_list);
-  if (object->hash)
-    free (object->hash);
-  
-  object->hash = NULL;
   
   if (object->next_collision != NULL)
     destroy_collision_record (object->next_collision);
@@ -221,7 +216,7 @@ dump_hash_cluster ()
                    , temp_rec->length
                    , temp_rec->uri
                    , temp_rec->date
-                   , temp_coll->hash
+                   , global.cluster_hash
                    , ext);
           if (options.proc)
             {
@@ -1254,6 +1249,7 @@ process_input ()
           global.record_cluster =
                   create_collision_record (global.current_record);
           global.cluster_hash = global.current_hash;
+          global.current_hash = NULL;
           global.total_records++;
         }
       else

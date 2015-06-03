@@ -95,7 +95,6 @@ typedef struct MemoryStruct {
 } MemoryStruct;
 
 typedef struct collision_record {
-    char *hash;
     struct collision_record *next_collision;
     struct duplicate_record *duplicate_list, *last_duplicate;
 } collision_record;

@@ -695,7 +695,7 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
     }
 
   /* 
-   * Initialize the curl session
+   * Reset the curl handle
    */
   curl_easy_reset (global.curl_handle);
 
@@ -759,7 +759,7 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
    */
   if (!downloaded)
     {
-      fprintf (stderr, "curl_easy_perform() failed: %s\n",
+      fprintf (stderr, "Download failed with error: %s\n",
                curl_easy_strerror (res));
       return false;
     }

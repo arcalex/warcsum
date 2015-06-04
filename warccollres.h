@@ -120,6 +120,8 @@ static struct global {
     
     MYSQL *conn;
     
+    CURL *curl_handle;
+    
     double time_compare, time_download, time_database;
     
 } global;

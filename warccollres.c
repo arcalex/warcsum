@@ -663,7 +663,6 @@ write_memory_callback (void *contents, size_t size, size_t nmemb, void *userp)
 bool
 http_download_file (char **url, size_t url_count, duplicate_record *record)
 {
-  CURL *curl_handle;
   CURLcode res;
 
   char* range = (char*) calloc (50, sizeof (char));
@@ -698,21 +697,21 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
   /* 
    * Initialize the curl session
    */
-  curl_handle = curl_easy_init ();
+  curl_easy_reset (global.curl_handle);
 
   /*
    * Specify the callback function for cURL
    */
-  curl_easy_setopt (curl_handle, CURLOPT_WRITEFUNCTION, write_memory_callback);
+  curl_easy_setopt (global.curl_handle, CURLOPT_WRITEFUNCTION, write_memory_callback);
 
   /*
    * Specify the structure to write the data into for cURL
    */
-  curl_easy_setopt (curl_handle, CURLOPT_WRITEDATA, (void *) record);
+  curl_easy_setopt (global.curl_handle, CURLOPT_WRITEDATA, (void *) record);
 
-  curl_easy_setopt (curl_handle, CURLOPT_RANGE, range);
+  curl_easy_setopt (global.curl_handle, CURLOPT_RANGE, range);
 
-  curl_easy_setopt (curl_handle, CURLOPT_FAILONERROR, 1);
+  curl_easy_setopt (global.curl_handle, CURLOPT_FAILONERROR, 1);
 
   bool downloaded = false;
 
@@ -723,12 +722,12 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
       /* 
        * specify URL to get
        */
-      curl_easy_setopt (curl_handle, CURLOPT_URL, url[i]);
+      curl_easy_setopt (global.curl_handle, CURLOPT_URL, url[i]);
 
       /*
        * Attempt to download the WARC member
        */
-      res = curl_easy_perform (curl_handle);
+      res = curl_easy_perform (global.curl_handle);
 
       /*
        * Check if there was any error.
@@ -742,10 +741,10 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
 
   for (i = 0; i < url_count; i++)
     {
-      if(url[i])
+      if (url[i])
         {
-            free (url[i]);
-            url[i] = NULL;
+          free (url[i]);
+          url[i] = NULL;
         }
     }
   if (url)
@@ -775,11 +774,6 @@ http_download_file (char **url, size_t url_count, duplicate_record *record)
       if (!inflate_record_member (record))
         return false;
     }
-
-  /* 
-   * cleanup curl handle
-   */
-  curl_easy_cleanup (curl_handle);
 
   free (range);
 
@@ -1231,6 +1225,11 @@ global_init ()
        * initialize the global curl session
        */
       curl_global_init (CURL_GLOBAL_ALL);
+
+      /* 
+       * Initialize the curl session
+       */
+      global.curl_handle = curl_easy_init ();
     }
 }
 
@@ -1295,6 +1294,11 @@ cleanup ()
     printf ("Cleaning up...\n");
 
   /* 
+   * cleanup curl handle
+   */
+  curl_easy_cleanup (global.curl_handle);
+
+  /* 
    * Global clean up for cURL
    */
   curl_global_cleanup ();
@@ -1306,25 +1310,25 @@ cleanup ()
    */
   destroy_collision_record (global.record_cluster);
   global.record_cluster = NULL;
-  
-  if(global.cluster_hash)
+
+  if (global.cluster_hash)
     {
-      free(global.cluster_hash);
+      free (global.cluster_hash);
       global.cluster_hash = NULL;
     }
-  
-  if(global.current_hash)
+
+  if (global.current_hash)
     {
-      free(global.current_hash);
+      free (global.current_hash);
       global.current_hash = NULL;
     }
-  
-  if(global.current_line)
+
+  if (global.current_line)
     {
-      free(global.current_line);
+      free (global.current_line);
       global.current_line = NULL;
     }
-  
+
   mysql_close (global.conn);
   mysql_library_end ();
   fclose (global.input);
